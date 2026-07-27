@@ -144,43 +144,101 @@
   }
 
   function renderToday() {
-    const date = toISODate(new Date());
-    const events = eventsForDate(date);
+    const today = toISODate(new Date());
+    const week = weekDates(0);
+    const todayEvents = eventsForDate(today);
     const openChores = state.chores.filter(item => !item.done);
-    const remaining = state.shopping.filter(item => !item.done).length;
-    const meal = state.meals[date] || 'Not decided';
+    const remainingShopping = state.shopping.filter(item => !item.done);
+    const meal = state.meals[today] || 'Not decided';
+    const weekEventCount = week.reduce((total, date) => total + eventsForDate(date).length, 0);
 
     viewRoot.innerHTML = `
-      <div class="dashboard-grid">
-        <section class="card hero-card">
+      <div class="week-at-glance">
+        <section class="card glance-hero">
+          <div class="glance-hero-copy">
+            <div class="eyebrow">Your week at a glance</div>
+            <div class="glance-date-range">${escapeHTML(formatWeekRange(week[0], week[6]))}</div>
+            <p>${weekEventCount ? `${weekEventCount} ${weekEventCount === 1 ? 'event' : 'events'} planned this week.` : 'A quiet week so far.'}</p>
+          </div>
+          <button class="primary-button" data-action="add-event" type="button">＋ Add event</button>
+        </section>
+
+        <section class="card glance-week-card">
           <div class="card-heading">
             <div>
-              <div class="card-title">Today</div>
-              <div class="card-subtitle">${escapeHTML(formatFriendlyDate(date))}</div>
+              <div class="card-title">This week</div>
+              <div class="card-subtitle">Everything coming up, day by day.</div>
             </div>
-            <button class="card-link" data-action="open-calendar" type="button">Open calendar →</button>
+            <button class="card-link" data-action="open-calendar" type="button">Full calendar →</button>
           </div>
-          ${events.length ? events.map(event => eventCardHTML(event, date)).join('') : '<div class="empty-message">Nothing scheduled today.</div>'}
-        </section>
-        <section class="card">
-          <div class="card-heading">
-            <div class="card-title">Chores</div>
-            <button class="card-link" data-action="open-chores" type="button">View all →</button>
-          </div>
-          <div class="mini-list">
-            ${openChores.length ? openChores.slice(0, 5).map(item => `<div class="mini-row"><span class="mini-check"></span><span>${escapeHTML(item.title)}</span></div>`).join('') : '<div class="empty-message">All done for now.</div>'}
+          <div class="glance-days">
+            ${week.map(date => weekDaySummaryHTML(date, today)).join('')}
           </div>
         </section>
-        <section class="card meal-highlight">
-          <div class="card-title">Tonight’s dinner</div>
-          <div class="meal-name">${escapeHTML(meal)}</div>
-        </section>
-        <section class="card">
-          <div class="card-title">Shopping list</div>
-          <div class="big-number">${remaining}</div>
-          <div class="muted">${remaining === 1 ? 'item left' : 'items left'}</div>
-        </section>
+
+        <div class="glance-side-grid">
+          <section class="card today-focus-card">
+            <div class="card-heading">
+              <div>
+                <div class="card-title">Today</div>
+                <div class="card-subtitle">${escapeHTML(formatFriendlyDate(today))}</div>
+              </div>
+            </div>
+            <div class="today-event-list">
+              ${todayEvents.length ? todayEvents.slice(0, 4).map(event => eventCardHTML(event, today)).join('') : '<div class="empty-message compact-empty">Nothing scheduled today.</div>'}
+            </div>
+          </section>
+
+          <section class="card meal-highlight glance-stat-card" data-action="open-meals" role="button" tabindex="0">
+            <div class="stat-icon" aria-hidden="true">◉</div>
+            <div>
+              <div class="card-title">Tonight’s dinner</div>
+              <div class="meal-name compact-meal">${escapeHTML(meal)}</div>
+            </div>
+          </section>
+
+          <section class="card glance-stat-card" data-action="open-chores" role="button" tabindex="0">
+            <div class="stat-icon" aria-hidden="true">✓</div>
+            <div>
+              <div class="card-title">Chores</div>
+              <div class="stat-number">${openChores.length}</div>
+              <div class="muted">${openChores.length === 1 ? 'job still to do' : 'jobs still to do'}</div>
+            </div>
+          </section>
+
+          <section class="card glance-stat-card" data-action="open-shopping" role="button" tabindex="0">
+            <div class="stat-icon" aria-hidden="true">⌑</div>
+            <div>
+              <div class="card-title">Shopping</div>
+              <div class="stat-number">${remainingShopping.length}</div>
+              <div class="muted">${remainingShopping.length === 1 ? 'item left' : 'items left'}</div>
+            </div>
+          </section>
+        </div>
       </div>`;
+  }
+
+  function weekDaySummaryHTML(date, today) {
+    const events = eventsForDate(date);
+    const parsed = parseISODate(date);
+    const dayName = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(parsed);
+    const dateLabel = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(parsed);
+    const meal = state.meals[date];
+    return `
+      <article class="glance-day ${date === today ? 'is-today' : ''}">
+        <div class="glance-day-heading">
+          <span class="glance-day-name">${date === today ? 'Today' : escapeHTML(dayName)}</span>
+          <span>${escapeHTML(dateLabel)}</span>
+        </div>
+        <div class="glance-day-events">
+          ${events.length ? events.slice(0, 3).map(event => {
+            const person = personFor(event.person);
+            return `<div class="glance-event"><i style="background:${person.colour}"></i><span><strong>${escapeHTML(eventTimeLabel(event, date))}</strong> ${escapeHTML(event.title)}</span></div>`;
+          }).join('') : '<div class="glance-free">Nothing planned</div>'}
+          ${events.length > 3 ? `<div class="glance-more">＋${events.length - 3} more</div>` : ''}
+        </div>
+        <div class="glance-meal">${meal ? `<span aria-hidden="true">◉</span> ${escapeHTML(meal)}` : '<span class="muted">Dinner not planned</span>'}</div>
+      </article>`;
   }
 
   function renderCalendar() {
@@ -414,6 +472,8 @@
 
     if (action === 'open-calendar') setView('calendar');
     if (action === 'open-chores') setView('chores');
+    if (action === 'open-meals') setView('meals');
+    if (action === 'open-shopping') setView('shopping');
     if (action === 'add-event') openEventModal();
     if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }

@@ -483,3 +483,75 @@ h2 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.7px; }
 @media (max-width: 760px) {
   .add-person-form { grid-template-columns: 1fr; }
 }
+
+/* Step 4: This Week at a Glance dashboard */
+.week-at-glance {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(290px, 0.8fr);
+  gap: 20px;
+}
+
+.glance-hero {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 26px;
+  color: #fff;
+  background: linear-gradient(125deg, #2b3c35, #3f725d);
+}
+
+.glance-hero .eyebrow { color: rgba(255,255,255,.72); }
+.glance-hero-copy p { margin: 6px 0 0; color: rgba(255,255,255,.78); }
+.glance-date-range { margin-top: 4px; font-size: clamp(28px, 3vw, 40px); font-weight: 850; letter-spacing: -1px; }
+.glance-hero .primary-button { background: #f1b85f; color: #27332e; white-space: nowrap; }
+.glance-hero .primary-button:hover { background: #f7c979; }
+
+.glance-week-card { min-width: 0; }
+.glance-days { display: grid; gap: 8px; }
+.glance-day {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) minmax(130px, 0.62fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 76px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fbfcfa;
+}
+.glance-day.is-today { border-color: #79aa96; background: #eef7f2; box-shadow: inset 4px 0 0 #438168; }
+.glance-day-heading { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.glance-day-name { color: var(--ink); font-size: 15px; font-weight: 850; }
+.glance-day-events { min-width: 0; display: grid; gap: 4px; }
+.glance-event { min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.glance-event i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; }
+.glance-event span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.glance-event strong { margin-right: 4px; font-size: 12px; }
+.glance-free, .glance-more { color: var(--muted); font-size: 13px; }
+.glance-meal { min-width: 0; padding-left: 12px; border-left: 1px solid var(--line); overflow: hidden; color: #5f665f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+
+.glance-side-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-content: start; }
+.today-focus-card { grid-column: 1 / -1; }
+.today-event-list .event-card { grid-template-columns: 58px minmax(0,1fr) auto; min-height: 58px; margin-bottom: 8px; }
+.compact-empty { padding: 8px 0 2px; }
+.glance-stat-card { display: flex; align-items: center; gap: 16px; min-height: 148px; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; }
+.glance-stat-card:hover, .glance-stat-card:focus-visible { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(42,52,47,.13); outline: none; }
+.stat-icon { display: grid; width: 46px; height: 46px; flex: 0 0 46px; place-items: center; border-radius: 14px; background: #e8efe9; color: var(--accent-dark); font-size: 23px; font-weight: 900; }
+.stat-number { margin-top: 2px; font-size: 42px; font-weight: 850; line-height: 1; letter-spacing: -2px; }
+.compact-meal { margin-top: 7px; font-size: clamp(20px, 2vw, 27px); }
+
+@media (max-width: 1100px) {
+  .week-at-glance { grid-template-columns: 1fr; }
+  .glance-side-grid { grid-template-columns: repeat(3, 1fr); }
+  .today-focus-card { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+  .glance-hero { align-items: flex-start; flex-direction: column; }
+  .glance-day { grid-template-columns: 68px minmax(0,1fr); }
+  .glance-meal { grid-column: 2; padding: 7px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+  .glance-side-grid { grid-template-columns: 1fr; }
+  .today-focus-card { grid-column: auto; }
+}
