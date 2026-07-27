@@ -61,6 +61,7 @@
   const fullDate = document.getElementById('fullDate');
   const clock = document.getElementById('clock');
   const mainNav = document.getElementById('mainNav');
+  const navToggle = document.getElementById('navToggle');
   const modalBackdrop = document.getElementById('modalBackdrop');
   const eventForm = document.getElementById('eventForm');
   const eventTitle = document.getElementById('eventTitle');
@@ -88,6 +89,12 @@
     if (appVersion) appVersion.textContent = `v${APP.version}`;
     refreshPersonOptions();
     mainNav.addEventListener('click', onNavigation);
+    navToggle?.addEventListener('click', toggleNavigation);
+    document.addEventListener('click', event => {
+      if (!document.body.classList.contains('nav-expanded')) return;
+      if (event.target.closest('.sidebar')) return;
+      setNavigationExpanded(false);
+    });
     viewRoot.addEventListener('click', onViewClick);
     viewRoot.addEventListener('change', onViewChange);
     viewRoot.addEventListener('keydown', onViewKeydown);
@@ -130,6 +137,21 @@
     const button = event.target.closest('[data-view]');
     if (!button) return;
     setView(button.dataset.view);
+    if (window.matchMedia('(max-width: 1500px)').matches) setNavigationExpanded(false);
+  }
+
+  function toggleNavigation(event) {
+    event.stopPropagation();
+    setNavigationExpanded(!document.body.classList.contains('nav-expanded'));
+  }
+
+  function setNavigationExpanded(expanded) {
+    document.body.classList.toggle('nav-expanded', expanded);
+    if (navToggle) {
+      navToggle.setAttribute('aria-expanded', String(expanded));
+      navToggle.setAttribute('aria-label', expanded ? 'Collapse navigation' : 'Expand navigation');
+      navToggle.textContent = expanded ? '‹' : '›';
+    }
   }
 
   function setView(view) {

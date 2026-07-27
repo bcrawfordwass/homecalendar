@@ -744,3 +744,260 @@ h2 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.7px; }
   .weather-location-controls { grid-template-columns: 1fr; }
   .weather-location-controls button { width: 100%; }
 }
+
+/* v0.3.1: compact expandable navigation and full-screen tablet dashboard */
+:root {
+  --nav-rail-width: 78px;
+  --nav-expanded-width: 202px;
+}
+
+.app-shell {
+  grid-template-columns: var(--nav-rail-width) minmax(0, 1fr);
+  transition: grid-template-columns .2s ease;
+}
+
+body.nav-expanded .app-shell {
+  grid-template-columns: var(--nav-expanded-width) minmax(0, 1fr);
+}
+
+.sidebar {
+  z-index: 50;
+  gap: 10px;
+  padding: max(18px, env(safe-area-inset-top)) 10px max(16px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  transition: width .2s ease, padding .2s ease;
+}
+
+.brand {
+  position: relative;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  margin: 0 0 18px;
+  white-space: nowrap;
+}
+
+.brand-mark {
+  flex: 0 0 38px;
+}
+
+.nav-label,
+.sidebar-footer {
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition: width .18s ease, opacity .12s ease;
+}
+
+body.nav-expanded .nav-label {
+  width: auto;
+  opacity: 1;
+}
+
+body.nav-expanded .sidebar-footer {
+  width: auto;
+  opacity: 1;
+}
+
+body.nav-expanded .brand {
+  justify-content: flex-start;
+  padding: 0 8px;
+}
+
+.nav-toggle {
+  position: absolute;
+  right: -2px;
+  top: 7px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 9px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.nav-expanded .nav-toggle { right: 2px; }
+
+#mainNav { gap: 7px; }
+
+.nav-button {
+  justify-content: center;
+  min-height: 51px;
+  gap: 12px;
+  padding: 11px;
+}
+
+body.nav-expanded .nav-button {
+  justify-content: flex-start;
+  padding-inline: 14px;
+}
+
+.nav-icon {
+  flex: 0 0 28px;
+}
+
+.sidebar-footer {
+  padding: 0 8px;
+}
+
+.main-content {
+  height: 100vh;
+  padding: 14px 22px 18px;
+  overflow: auto;
+}
+
+.topbar {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.eyebrow { font-size: 13px; }
+h1 { margin-top: 1px; font-size: clamp(31px, 3.25vw, 43px); }
+.clock { font-size: 29px; }
+
+.week-at-glance {
+  grid-template-columns: minmax(0, 1.62fr) minmax(360px, .9fr);
+  gap: 14px;
+}
+
+.glance-hero {
+  gap: 18px;
+  padding: 15px 20px;
+  border-radius: 20px;
+}
+
+.glance-date-range {
+  margin-top: 1px;
+  font-size: clamp(25px, 2.55vw, 34px);
+}
+
+.glance-hero-copy p { margin-top: 3px; font-size: 13px; }
+
+.card {
+  border-radius: 19px;
+  padding: 16px;
+}
+
+.card-heading {
+  margin-bottom: 11px;
+}
+
+.card-title { font-size: 18px; }
+.card-subtitle { margin-top: 2px; font-size: 12px; }
+
+.glance-days { gap: 6px; }
+
+.glance-day {
+  grid-template-columns: 76px minmax(0, 1fr) minmax(112px, .55fr);
+  gap: 10px;
+  min-height: 54px;
+  padding: 7px 10px;
+  border-radius: 12px;
+}
+
+.glance-day-heading { gap: 1px; font-size: 10px; }
+.glance-day-name { font-size: 13px; }
+.glance-event, .glance-free, .glance-more, .glance-meal { font-size: 11px; }
+.glance-event strong { font-size: 10px; }
+.glance-meal { padding-left: 9px; }
+
+.glance-side-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+.today-focus-card,
+.weather-card {
+  grid-column: 1 / -1;
+}
+
+.today-focus-card {
+  min-height: 98px;
+}
+
+.today-focus-card .card-heading { margin-bottom: 5px; }
+.today-event-list .event-card { min-height: 44px; margin-bottom: 5px; padding-block: 7px; }
+.compact-empty { padding: 4px 0 0; font-size: 13px; }
+
+.weather-card {
+  grid-template-columns: minmax(145px, .72fr) minmax(0, 1.55fr);
+  gap: 10px;
+  padding: 13px;
+}
+
+.weather-current { gap: 9px; }
+.weather-icon-large { font-size: 38px; }
+.weather-temperature { font-size: 39px; letter-spacing: -2px; }
+.weather-location { padding-right: 25px; font-size: 11px; }
+.weather-condition { margin-top: 2px; font-size: 13px; }
+.weather-feels { font-size: 10px; }
+.weather-days { gap: 5px; }
+.weather-day { gap: 2px; padding: 6px 3px; border-radius: 10px; }
+.weather-day strong, .weather-day span { font-size: 10px; }
+.weather-day-icon { font-size: 17px !important; }
+.weather-day small { font-size: 8px; }
+.weather-refresh-button { top: 7px; right: 7px; width: 28px; height: 28px; font-size: 17px; }
+
+.glance-stat-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 92px;
+  padding: 11px;
+}
+
+.glance-stat-card .stat-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  border-radius: 10px;
+  font-size: 17px;
+}
+
+.glance-stat-card .card-title { font-size: 13px; }
+.glance-stat-card .stat-number { font-size: 30px; letter-spacing: -1px; }
+.glance-stat-card .muted { font-size: 10px; line-height: 1.15; }
+.glance-stat-card .compact-meal { margin-top: 2px; font-size: clamp(14px, 1.35vw, 18px); }
+
+.update-banner {
+  left: calc(var(--nav-rail-width) + 18px);
+}
+
+body.nav-expanded .update-banner {
+  left: calc(var(--nav-expanded-width) + 18px);
+}
+
+@media (max-width: 1180px) {
+  .week-at-glance { grid-template-columns: minmax(0, 1.48fr) minmax(325px, .82fr); }
+  .glance-day { grid-template-columns: 70px minmax(0, 1fr) minmax(96px, .48fr); }
+  .weather-days .weather-day:nth-child(4) { display: none; }
+  .weather-days { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-height: 760px) and (min-width: 900px) {
+  .main-content { padding-top: 10px; padding-bottom: 10px; }
+  .topbar { margin-bottom: 8px; }
+  .glance-hero { padding-block: 11px; }
+  .glance-day { min-height: 48px; padding-block: 5px; }
+  .today-focus-card { min-height: 82px; }
+  .weather-card { padding-block: 9px; }
+  .glance-stat-card { min-height: 78px; }
+}
+
+@media (max-width: 900px) {
+  .app-shell,
+  body.nav-expanded .app-shell { grid-template-columns: 68px minmax(0, 1fr); }
+  .nav-toggle { display: none; }
+  body.nav-expanded .nav-label,
+  body.nav-expanded .sidebar-footer { width: 0; opacity: 0; }
+  .week-at-glance { grid-template-columns: 1fr; }
+  .glance-side-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
