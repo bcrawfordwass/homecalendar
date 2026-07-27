@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-hub-v5-multiday';
+const CACHE_NAME = 'family-hub-v6-edit-events-multiday';
 const ASSETS = [
   './',
   './index.html',

@@ -2,15 +2,17 @@
   'use strict';
 
   const STORAGE_KEY = 'family-hub-lenovo-v1';
-  const PEOPLE = [
+  const DEFAULT_PEOPLE = [
     { id: 'ben', name: 'Ben', colour: '#ff8a65', chip: '#ffe6dc' },
     { id: 'millie', name: 'Millie', colour: '#7e9cff', chip: '#e5eaff' },
+    { id: 'ophelia', name: 'Ophelia', colour: '#e98bc4', chip: '#fbe3f2' },
     { id: 'family', name: 'Family', colour: '#5fbe8f', chip: '#dcf3e7' }
   ];
 
   const DAY_MS = 24 * 60 * 60 * 1000;
   const todayISO = toISODate(new Date());
   const seed = {
+    people: structuredCloneSafe(DEFAULT_PEOPLE),
     events: [
       { id: uid(), title: 'Swimming', startDate: addDaysISO(todayISO, 1), endDate: addDaysISO(todayISO, 1), startTime: '16:30', endTime: '17:30', person: 'millie', repeats: false },
       { id: uid(), title: 'Family weekend away', startDate: addDaysISO(todayISO, 3), endDate: addDaysISO(todayISO, 5), startTime: '', endTime: '', person: 'family', repeats: false }
@@ -40,6 +42,7 @@
   let currentView = 'today';
   let weekOffset = 0;
   let deferredInstallPrompt = null;
+  let editingEventId = null;
 
   const viewRoot = document.getElementById('viewRoot');
   const viewTitle = document.getElementById('viewTitle');
@@ -56,11 +59,13 @@
   const eventPerson = document.getElementById('eventPerson');
   const eventRepeats = document.getElementById('eventRepeats');
   const installButton = document.getElementById('installButton');
+  const modalTitle = document.getElementById('modalTitle');
+  const saveEventButton = document.getElementById('saveEventButton');
 
   initialise();
 
   function initialise() {
-    eventPerson.innerHTML = PEOPLE.map(person => `<option value="${person.id}">${escapeHTML(person.name)}</option>`).join('');
+    refreshPersonOptions();
     mainNav.addEventListener('click', onNavigation);
     viewRoot.addEventListener('click', onViewClick);
     viewRoot.addEventListener('change', onViewChange);
@@ -119,12 +124,13 @@
     if (currentView === 'chores') renderChores();
     if (currentView === 'meals') renderMeals();
     if (currentView === 'shopping') renderShopping();
+    if (currentView === 'people') renderPeople();
   }
 
   function updateViewTitle() {
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    const titles = { today: greeting, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping' };
+    const titles = { today: greeting, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People' };
     viewTitle.textContent = titles[currentView] || 'Family Hub';
   }
 
@@ -186,7 +192,7 @@
         <div class="calendar-toolbar">
           <div>
             <div class="card-title">${escapeHTML(formatWeekRange(weekStart, weekEnd))}</div>
-            <div class="legend">${PEOPLE.map(person => `<span><i class="legend-dot" style="background:${person.colour}"></i>${escapeHTML(person.name)}</span>`).join('')}</div>
+            <div class="legend">${state.people.map(person => `<span><i class="legend-dot" style="background:${person.colour}"></i>${escapeHTML(person.name)}</span>`).join('')}</div>
           </div>
           <div class="toolbar-actions">
             <div class="week-nav">
@@ -223,7 +229,7 @@
         <span class="event-time">${escapeHTML(eventTimeLabel(event, date))}</span>
         <span class="event-title" title="${escapeHTML(event.title)}">${escapeHTML(event.title)}</span>
         <span class="person-chip" style="--chip-colour:${person.chip}">${escapeHTML(person.name)}</span>
-        <div class="event-actions"><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>
+        <div class="event-actions"><button class="tiny-button" data-action="edit-event" data-id="${event.id}" type="button">Edit</button><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>
       </article>`;
   }
 
@@ -260,7 +266,7 @@
         <span class="row-title ${item.done ? 'done' : ''}">${escapeHTML(item.title)}</span>
         <span class="spacer"></span>
         <select class="person-select" data-action="assign-chore" data-id="${item.id}" aria-label="Assign chore">
-          ${PEOPLE.map(person => `<option value="${person.id}" ${person.id === item.person ? 'selected' : ''}>${escapeHTML(person.name)}</option>`).join('')}
+          ${state.people.map(person => `<option value="${person.id}" ${person.id === item.person ? 'selected' : ''}>${escapeHTML(person.name)}</option>`).join('')}
         </select>
         <button class="delete-button" data-action="delete-chore" data-id="${item.id}" type="button" aria-label="Delete chore">×</button>
       </div>`;
@@ -296,6 +302,72 @@
         <span class="meal-day"><strong>${escapeHTML(day)}</strong><span>${escapeHTML(label)}</span></span>
         <input class="meal-input" data-action="edit-meal" data-date="${date}" value="${escapeHTML(state.meals[date] || '')}" placeholder="What’s for dinner?">
       </label>`;
+  }
+
+  function renderPeople() {
+    viewRoot.innerHTML = `
+      <section class="card list-card">
+        <div class="card-heading">
+          <div>
+            <div class="card-title">Family members</div>
+            <div class="card-subtitle">Add everyone who should have their own calendar colour.</div>
+          </div>
+        </div>
+        <div class="people-grid">
+          ${state.people.map(person => `
+            <article class="person-card">
+              <div class="person-avatar" style="background:${person.colour}">${escapeHTML(person.name.slice(0, 1).toUpperCase())}</div>
+              <div class="person-card-copy">
+                <strong>${escapeHTML(person.name)}</strong>
+                <span>${person.id === 'family' ? 'Shared family events' : 'Personal calendar colour'}</span>
+              </div>
+              ${person.id === 'family' ? '' : `<button class="delete-button" data-action="delete-person" data-id="${person.id}" type="button" aria-label="Delete ${escapeHTML(person.name)}">×</button>`}
+            </article>`).join('')}
+        </div>
+        <form id="addPersonForm" class="add-person-form">
+          <label>
+            <span>Name</span>
+            <input id="newPersonName" autocomplete="off" placeholder="Add a family member" required>
+          </label>
+          <label>
+            <span>Colour</span>
+            <input id="newPersonColour" type="color" value="#8f7cf2" aria-label="Choose calendar colour">
+          </label>
+          <button class="primary-button" type="submit">＋ Add person</button>
+        </form>
+      </section>`;
+    document.getElementById('addPersonForm')?.addEventListener('submit', addPerson);
+  }
+
+  function addPerson(event) {
+    event.preventDefault();
+    const nameInput = document.getElementById('newPersonName');
+    const colourInput = document.getElementById('newPersonColour');
+    const name = nameInput.value.trim();
+    if (!name) return;
+    if (state.people.some(person => person.name.toLowerCase() === name.toLowerCase())) {
+      showToast('That person is already listed');
+      return;
+    }
+    const colour = colourInput.value || '#8f7cf2';
+    state.people.splice(Math.max(0, state.people.length - 1), 0, {
+      id: slugify(name) + '-' + Math.random().toString(16).slice(2, 6),
+      name,
+      colour,
+      chip: hexToSoftColour(colour)
+    });
+    refreshPersonOptions();
+    saveAndRender(`${name} added`);
+  }
+
+  function deletePerson(id) {
+    const person = state.people.find(entry => entry.id === id);
+    if (!person || id === 'family') return;
+    state.events.forEach(event => { if (event.person === id) event.person = 'family'; });
+    state.chores.forEach(chore => { if (chore.person === id) chore.person = 'family'; });
+    state.people = state.people.filter(entry => entry.id !== id);
+    refreshPersonOptions();
+    saveAndRender(`${person.name} removed`);
   }
 
   function renderShopping() {
@@ -343,6 +415,7 @@
     if (action === 'open-calendar') setView('calendar');
     if (action === 'open-chores') setView('chores');
     if (action === 'add-event') openEventModal();
+    if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }
     if (action === 'next-week') { weekOffset += 1; render(); }
     if (action === 'this-week') { weekOffset = 0; render(); }
@@ -351,6 +424,7 @@
     if (action === 'delete-chore') deleteItem('chores', id);
     if (action === 'toggle-shopping') toggleItem('shopping', id);
     if (action === 'delete-shopping') deleteItem('shopping', id);
+    if (action === 'delete-person') deletePerson(id);
     if (action === 'clear-shopping') {
       state.shopping = state.shopping.filter(item => !item.done);
       saveAndRender('Completed items cleared');
@@ -408,22 +482,42 @@
     saveAndRender('Deleted');
   }
 
-  function openEventModal() {
+  function openEventModal(id = null) {
     const week = weekDates(weekOffset);
     eventForm.reset();
-    eventStartDate.value = currentView === 'calendar' ? week[0] : toISODate(new Date());
-    eventEndDate.value = '';
+    editingEventId = id;
+    const existing = id ? state.events.find(entry => String(entry.id) === String(id)) : null;
+
+    if (existing) {
+      const event = normaliseEvent(existing);
+      modalTitle.textContent = 'Edit event';
+      saveEventButton.textContent = 'Save changes';
+      eventTitle.value = event.title;
+      eventStartDate.value = event.startDate;
+      eventEndDate.value = event.endDate === event.startDate ? '' : event.endDate;
+      eventStartTime.value = event.startTime;
+      eventEndTime.value = event.endTime;
+      eventPerson.value = event.person;
+      eventRepeats.checked = Boolean(event.repeats);
+    } else {
+      modalTitle.textContent = 'Add an event';
+      saveEventButton.textContent = 'Add event';
+      eventStartDate.value = currentView === 'calendar' ? week[0] : toISODate(new Date());
+      eventEndDate.value = '';
+      eventStartTime.value = '';
+      eventEndTime.value = '';
+      eventPerson.value = 'family';
+      eventRepeats.checked = false;
+    }
+
     eventEndDate.min = eventStartDate.value;
-    eventStartTime.value = '';
-    eventEndTime.value = '';
-    eventPerson.value = 'family';
-    eventRepeats.checked = false;
     modalBackdrop.classList.remove('hidden');
     window.setTimeout(() => eventTitle.focus(), 30);
   }
 
   function closeEventModal() {
     modalBackdrop.classList.add('hidden');
+    editingEventId = null;
   }
 
   function addEvent(event) {
@@ -441,8 +535,7 @@
       eventEndTime.focus();
       return;
     }
-    state.events.push({
-      id: uid(),
+    const eventData = {
       title,
       startDate: eventStartDate.value,
       endDate,
@@ -450,7 +543,17 @@
       endTime: eventEndTime.value,
       person: eventPerson.value,
       repeats: eventRepeats.checked
-    });
+    };
+
+    if (editingEventId) {
+      const index = state.events.findIndex(entry => String(entry.id) === String(editingEventId));
+      if (index !== -1) state.events[index] = { ...state.events[index], ...eventData };
+      closeEventModal();
+      saveAndRender('Event updated');
+      return;
+    }
+
+    state.events.push({ id: uid(), ...eventData });
     closeEventModal();
     saveAndRender('Event added');
   }
@@ -497,7 +600,14 @@
   }
 
   function personFor(id) {
-    return PEOPLE.find(person => person.id === id) || PEOPLE[PEOPLE.length - 1];
+    return state.people.find(person => person.id === id) || state.people.find(person => person.id === 'family') || state.people[0];
+  }
+
+  function refreshPersonOptions() {
+    if (!eventPerson) return;
+    const current = eventPerson.value;
+    eventPerson.innerHTML = state.people.map(person => `<option value="${person.id}">${escapeHTML(person.name)}</option>`).join('');
+    if (state.people.some(person => person.id === current)) eventPerson.value = current;
   }
 
   function saveAndRender(message) {
@@ -522,6 +632,11 @@
         return structuredCloneSafe(seed);
       }
       stored.events = stored.events.map(normaliseEvent);
+      stored.people = Array.isArray(stored.people) && stored.people.length ? stored.people : structuredCloneSafe(DEFAULT_PEOPLE);
+      if (!stored.people.some(person => person.id === 'ophelia')) {
+        const familyIndex = stored.people.findIndex(person => person.id === 'family');
+        stored.people.splice(familyIndex >= 0 ? familyIndex : stored.people.length, 0, structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'ophelia')));
+      }
       return stored;
     } catch {
       return structuredCloneSafe(seed);
@@ -594,6 +709,19 @@
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#039;');
+  }
+
+
+  function slugify(value) {
+    return value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'person';
+  }
+
+  function hexToSoftColour(hex) {
+    const clean = String(hex).replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(clean)) return '#eeeafd';
+    const rgb = [0, 2, 4].map(index => parseInt(clean.slice(index, index + 2), 16));
+    const soft = rgb.map(value => Math.round(value + (255 - value) * 0.78));
+    return `#${soft.map(value => value.toString(16).padStart(2, '0')).join('')}`;
   }
 
   function structuredCloneSafe(value) {
