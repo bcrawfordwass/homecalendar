@@ -334,15 +334,168 @@
       </article>`;
   }
 
+  const EVENT_ICON_RULES = [
+    // Travel, holidays and days out
+    { icon: '🏖️', keywords: ['beach holiday', 'seaside holiday', 'beach', 'seaside', 'coast', 'coastal'] },
+    { icon: '🧳', keywords: ['holiday', 'vacation', 'weekend away', 'city break', 'staycation', 'getaway', 'trip away'] },
+    { icon: '✈️', keywords: ['flight', 'airport', 'flying', 'departure', 'arrivals', 'boarding', 'terminal'] },
+    { icon: '🚆', keywords: ['train', 'railway', 'rail trip', 'station'] },
+    { icon: '🚗', keywords: ['road trip', 'drive to', 'driving', 'car journey', 'mot', 'car service'] },
+    { icon: '🚌', keywords: ['school bus', 'coach trip', 'bus'] },
+    { icon: '⛴️', keywords: ['ferry', 'boat trip', 'cruise', 'sailing trip'] },
+    { icon: '🏕️', keywords: ['camping', 'campsite', 'camp'] },
+    { icon: '🏨', keywords: ['hotel', 'check in', 'check-in', 'accommodation', 'airbnb'] },
+    { icon: '🗺️', keywords: ['travel', 'tour', 'sightseeing', 'day trip', 'excursion'] },
+
+    // Health, medical and wellbeing
+    { icon: '🦷', keywords: ['dentist', 'dental', 'orthodontist', 'tooth', 'teeth'] },
+    { icon: '👓', keywords: ['optician', 'eye test', 'ophthalmologist', 'glasses'] },
+    { icon: '🩺', keywords: ['doctor', 'doctors', 'gp appointment', 'gp ', 'hospital', 'clinic', 'consultant', 'medical', 'check-up', 'checkup', 'health visitor'] },
+    { icon: '💉', keywords: ['vaccination', 'vaccine', 'immunisation', 'immunization', 'jab', 'injection'] },
+    { icon: '💊', keywords: ['pharmacy', 'prescription', 'medicine', 'medication'] },
+    { icon: '🧠', keywords: ['therapy', 'therapist', 'counselling', 'counseling', 'mental health', 'psychologist'] },
+    { icon: '🦴', keywords: ['physio', 'physiotherapy', 'chiropractor', 'osteopath', 'sports massage'] },
+    { icon: '🧘', keywords: ['yoga', 'meditation', 'mindfulness', 'pilates', 'wellbeing', 'wellness'] },
+    { icon: '💇', keywords: ['haircut', 'hairdresser', 'barber', 'hair appointment', 'salon'] },
+    { icon: '💅', keywords: ['nails', 'manicure', 'pedicure', 'beauty appointment', 'spa'] },
+
+    // Babies, children, school and learning
+    { icon: '👶', keywords: ['baby group', 'health visitor', 'weigh in', 'weigh-in', 'baby class', 'baby sensory'] },
+    { icon: '🍼', keywords: ['feeding', 'bottle', 'milk feed', 'weaning'] },
+    { icon: '😴', keywords: ['nap', 'bedtime', 'sleep'] },
+    { icon: '🎒', keywords: ['school', 'nursery', 'preschool', 'pre-school', 'kindergarten', 'school run', 'drop off', 'drop-off', 'pick up', 'pick-up'] },
+    { icon: '📚', keywords: ['homework', 'study', 'revision', 'reading', 'library', 'book club', 'lesson'] },
+    { icon: '🧑‍🏫', keywords: ['parents evening', 'parent evening', 'teacher meeting', 'school meeting', 'pta'] },
+    { icon: '📝', keywords: ['exam', 'test', 'assessment', 'interview', 'application'] },
+    { icon: '🎓', keywords: ['graduation', 'degree', 'university', 'college'] },
+    { icon: '🧸', keywords: ['playgroup', 'soft play', 'play date', 'playdate', 'toddler group'] },
+
+    // Work and professional life
+    { icon: '🏢', keywords: ['office', 'work from office', 'in the office'] },
+    { icon: '🏠', keywords: ['work from home', 'working from home', 'wfh', 'remote work'] },
+    { icon: '💼', keywords: ['work', 'client meeting', 'business meeting', 'conference call', 'project meeting'] },
+    { icon: '🖥️', keywords: ['zoom', 'teams call', 'video call', 'webinar', 'online meeting'] },
+    { icon: '🤝', keywords: ['meeting', 'catch up', 'catch-up', 'one to one', '1:1', 'appointment'] },
+    { icon: '🎤', keywords: ['presentation', 'talk', 'keynote', 'speech', 'panel'] },
+    { icon: '🏛️', keywords: ['conference', 'convention', 'summit', 'workshop'] },
+    { icon: '📊', keywords: ['review', 'planning session', 'strategy', 'reporting'] },
+    { icon: '💷', keywords: ['payday', 'bank', 'mortgage', 'financial adviser', 'accountant', 'tax'] },
+
+    // Sports and exercise
+    { icon: '🏊', keywords: ['swimming', 'swim', 'pool', 'aqua class'] },
+    { icon: '⚽', keywords: ['football', 'soccer', 'five-a-side', '5-a-side', 'futsal'] },
+    { icon: '🏉', keywords: ['rugby'] },
+    { icon: '🏏', keywords: ['cricket'] },
+    { icon: '🎾', keywords: ['tennis'] },
+    { icon: '🏸', keywords: ['badminton'] },
+    { icon: '🏀', keywords: ['basketball'] },
+    { icon: '🏐', keywords: ['volleyball'] },
+    { icon: '🏑', keywords: ['hockey'] },
+    { icon: '⛳', keywords: ['golf'] },
+    { icon: '🏓', keywords: ['table tennis', 'ping pong', 'ping-pong'] },
+    { icon: '🥊', keywords: ['boxing', 'boxercise'] },
+    { icon: '🥋', keywords: ['karate', 'judo', 'taekwondo', 'martial arts', 'jiu jitsu', 'ju-jitsu'] },
+    { icon: '🏃', keywords: ['running', 'run club', 'jog', 'marathon', 'parkrun', 'race'] },
+    { icon: '🚴', keywords: ['cycling', 'bike ride', 'bicycle', 'spin class', 'spinning'] },
+    { icon: '🏋️', keywords: ['gym', 'weights', 'weight training', 'personal trainer', 'pt session', 'fitness'] },
+    { icon: '🤸', keywords: ['gymnastics', 'trampoline', 'acrobatics'] },
+    { icon: '⛸️', keywords: ['ice skating', 'skating'] },
+    { icon: '🎿', keywords: ['skiing', 'snowboarding', 'ski trip'] },
+    { icon: '🏇', keywords: ['horse riding', 'riding lesson', 'equestrian'] },
+    { icon: '🧗', keywords: ['climbing', 'bouldering'] },
+    { icon: '🏎️', keywords: ['formula 1', 'f1', 'grand prix', 'motorsport', 'go kart', 'go-kart', 'karting'] },
+    { icon: '🎯', keywords: ['darts', 'archery'] },
+    { icon: '🎳', keywords: ['bowling'] },
+    { icon: '🎱', keywords: ['snooker', 'pool match', 'billiards'] },
+    { icon: '🚶', keywords: ['walk', 'walking', 'hike', 'hiking', 'ramble'] },
+
+    // Music, arts and hobbies
+    { icon: '🎵', keywords: ['music lesson', 'music class', 'choir', 'singing'] },
+    { icon: '🎸', keywords: ['guitar'] },
+    { icon: '🎹', keywords: ['piano', 'keyboard lesson'] },
+    { icon: '🥁', keywords: ['drums', 'drumming'] },
+    { icon: '🎻', keywords: ['violin', 'orchestra'] },
+    { icon: '💃', keywords: ['dance', 'dancing', 'ballet', 'tap class', 'salsa'] },
+    { icon: '🎭', keywords: ['theatre', 'theater', 'drama', 'play rehearsal', 'pantomime'] },
+    { icon: '🎨', keywords: ['art', 'painting', 'drawing', 'craft', 'pottery', 'ceramics'] },
+    { icon: '📷', keywords: ['photography', 'photo shoot', 'photoshoot', 'family photos'] },
+    { icon: '🎮', keywords: ['gaming', 'video games', 'games night'] },
+    { icon: '🧩', keywords: ['puzzle', 'lego', 'board game'] },
+    { icon: '🌱', keywords: ['gardening', 'allotment', 'garden centre', 'planting'] },
+
+    // Celebrations and social events
+    { icon: '🎂', keywords: ['birthday', 'bday'] },
+    { icon: '💒', keywords: ['wedding', 'marriage', 'civil ceremony'] },
+    { icon: '💍', keywords: ['engagement', 'anniversary'] },
+    { icon: '🎉', keywords: ['party', 'celebration', 'hen do', 'stag do', 'baby shower'] },
+    { icon: '🎄', keywords: ['christmas', 'xmas', 'santa', 'nativity'] },
+    { icon: '🐣', keywords: ['easter', 'egg hunt'] },
+    { icon: '🎃', keywords: ['halloween', 'trick or treat'] },
+    { icon: '🎆', keywords: ['fireworks', 'bonfire night', 'new year', 'nye'] },
+    { icon: '💐', keywords: ['mothers day', "mother's day", 'fathers day', "father's day"] },
+    { icon: '☕', keywords: ['coffee', 'café', 'cafe', 'coffee morning'] },
+    { icon: '🍻', keywords: ['drinks', 'pub', 'bar'] },
+    { icon: '🍽️', keywords: ['dinner', 'lunch', 'breakfast', 'brunch', 'restaurant', 'meal out', 'supper'] },
+    { icon: '🧺', keywords: ['picnic'] },
+    { icon: '👨‍👩‍👧‍👦', keywords: ['family day', 'family time', 'family visit', 'visit family'] },
+    { icon: '🏡', keywords: ['friends over', 'visitors', 'guests', 'at home'] },
+
+    // Entertainment and outings
+    { icon: '🎬', keywords: ['cinema', 'movie', 'film'] },
+    { icon: '🎟️', keywords: ['tickets', 'show', 'concert', 'gig', 'festival'] },
+    { icon: '🏟️', keywords: ['stadium', 'match day', 'matchday'] },
+    { icon: '🏛️', keywords: ['museum', 'gallery', 'exhibition'] },
+    { icon: '🦁', keywords: ['zoo', 'safari park'] },
+    { icon: '🐠', keywords: ['aquarium', 'sea life'] },
+    { icon: '🎢', keywords: ['theme park', 'amusement park', 'funfair'] },
+    { icon: '🌳', keywords: ['park', 'national trust', 'country park'] },
+    { icon: '🏰', keywords: ['castle', 'historic house'] },
+    { icon: '📖', keywords: ['story time', 'storytime', 'book signing'] },
+
+    // Home, errands and practical appointments
+    { icon: '🛒', keywords: ['shopping', 'supermarket', 'groceries', 'food shop'] },
+    { icon: '📦', keywords: ['delivery', 'parcel', 'package', 'collection'] },
+    { icon: '🔧', keywords: ['plumber', 'electrician', 'builder', 'repair', 'maintenance', 'handyman'] },
+    { icon: '🏠', keywords: ['estate agent', 'house viewing', 'viewing', 'survey', 'home appointment'] },
+    { icon: '🧹', keywords: ['cleaning', 'cleaner', 'tidy up', 'housework'] },
+    { icon: '🧺', keywords: ['laundry', 'washing', 'dry cleaning'] },
+    { icon: '🗑️', keywords: ['bins', 'bin day', 'recycling', 'rubbish'] },
+    { icon: '🐕', keywords: ['dog walk', 'dog groomer', 'dog grooming', 'vet', 'veterinary'] },
+    { icon: '🐈', keywords: ['cat sitter', 'cat appointment'] },
+    { icon: '📮', keywords: ['post office', 'post parcel'] },
+    { icon: '🏦', keywords: ['bank appointment', 'building society'] },
+    { icon: '⚖️', keywords: ['solicitor', 'lawyer', 'legal appointment', 'court'] },
+    { icon: '🗳️', keywords: ['vote', 'voting', 'election'] },
+    { icon: '⛪', keywords: ['church', 'christening', 'baptism', 'mass', 'service'] },
+    { icon: '🕯️', keywords: ['funeral', 'memorial', 'remembrance'] },
+
+    // General status and reminders
+    { icon: '📞', keywords: ['phone call', 'call with', 'ring '] },
+    { icon: '📧', keywords: ['email', 'send email'] },
+    { icon: '⏰', keywords: ['reminder', 'deadline', 'due date'] },
+    { icon: '📅', keywords: ['appointment', 'event'] }
+  ];
+
+  function normaliseEventIconText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[’']/g, "'")
+      .replace(/[^a-z0-9£&+:' -]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function homeEventSymbol(title) {
-    const value = String(title || '').toLowerCase();
-    if (value.includes('swim')) return '≈';
-    if (value.includes('office') || value.includes('work')) return '▣';
-    if (value.includes('dent')) return '✦';
-    if (value.includes('school')) return '⌂';
-    if (value.includes('birthday')) return '★';
-    if (value.includes('holiday') || value.includes('stay')) return '⌁';
-    return '●';
+    const text = ` ${normaliseEventIconText(title)} `;
+    const match = EVENT_ICON_RULES.find(rule => rule.keywords.some(keyword => {
+      const normalisedKeyword = normaliseEventIconText(keyword);
+      return normalisedKeyword.length <= 2
+        ? text.includes(` ${normalisedKeyword} `)
+        : text.includes(normalisedKeyword);
+    }));
+    return match?.icon || '📅';
   }
 
   function homeTimelineHTML(events, meal) {
