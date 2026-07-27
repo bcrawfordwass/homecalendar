@@ -697,3 +697,50 @@ h2 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.7px; }
     width: 100%;
   }
 }
+
+/* v0.3.0: dashboard weather */
+.weather-card {
+  position: relative;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(190px, .85fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, #eaf4ef 0%, #f8f5e8 100%);
+}
+.weather-card-empty {
+  display: flex;
+  min-height: 120px;
+  cursor: pointer;
+}
+.weather-current { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.weather-current-copy { min-width: 0; }
+.weather-icon-large { flex: 0 0 auto; font-size: 52px; line-height: 1; }
+.weather-location { overflow: hidden; color: var(--muted); font-size: 13px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.weather-temperature { margin-top: 2px; font-size: 52px; font-weight: 880; line-height: .95; letter-spacing: -3px; }
+.weather-condition { margin-top: 5px; font-weight: 800; }
+.weather-feels { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.weather-days { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.weather-day { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 10px 6px; border: 1px solid rgba(47,117,93,.12); border-radius: 13px; background: rgba(255,255,255,.56); text-align: center; }
+.weather-day strong { font-size: 12px; }
+.weather-day span { font-size: 12px; white-space: nowrap; }
+.weather-day-icon { font-size: 22px !important; line-height: 1; }
+.weather-day small { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.weather-refresh-button { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border: 0; border-radius: 10px; background: rgba(255,255,255,.64); color: var(--accent-dark); font-size: 20px; cursor: pointer; }
+.weather-location-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-top: 18px; }
+.weather-location-controls input { min-width: 0; min-height: 48px; border: 1px solid #d6ddd7; border-radius: 13px; padding: 11px 13px; background: #fff; color: var(--ink); }
+.weather-location-controls .secondary-button { grid-column: auto; }
+.weather-settings-card { align-self: start; }
+
+@media (max-width: 1320px) and (min-width: 1101px) {
+  .weather-card { grid-template-columns: 1fr; }
+  .weather-days { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .weather-card { grid-template-columns: 1fr; }
+  .weather-days { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .weather-location-controls { grid-template-columns: 1fr; }
+  .weather-location-controls button { width: 100%; }
+}

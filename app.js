@@ -38,7 +38,14 @@
       { id: uid(), title: 'Milk', done: false },
       { id: uid(), title: 'Bread', done: false },
       { id: uid(), title: 'Apples', done: true }
-    ]
+    ],
+    weather: {
+      locationName: '',
+      latitude: null,
+      longitude: null,
+      updatedAt: null,
+      forecast: null
+    }
   };
 
   let state = null;
@@ -116,6 +123,7 @@
     updateDateAndClock();
     window.setInterval(updateDateAndClock, 30_000);
     render();
+    if (hasWeatherLocation()) refreshWeather(false);
   }
 
   function onNavigation(event) {
@@ -203,6 +211,8 @@
             </div>
           </section>
 
+          ${weatherCardHTML()}
+
           <section class="card meal-highlight glance-stat-card" data-action="open-meals" role="button" tabindex="0">
             <div class="stat-icon" aria-hidden="true">◉</div>
             <div>
@@ -253,6 +263,190 @@
         </div>
         <div class="glance-meal">${meal ? `<span aria-hidden="true">◉</span> ${escapeHTML(meal)}` : '<span class="muted">Dinner not planned</span>'}</div>
       </article>`;
+  }
+
+  function normaliseWeatherState(value) {
+    return {
+      locationName: typeof value?.locationName === 'string' ? value.locationName : '',
+      latitude: value?.latitude !== null && value?.latitude !== undefined && Number.isFinite(Number(value.latitude)) ? Number(value.latitude) : null,
+      longitude: value?.longitude !== null && value?.longitude !== undefined && Number.isFinite(Number(value.longitude)) ? Number(value.longitude) : null,
+      updatedAt: value?.updatedAt || null,
+      forecast: value?.forecast && typeof value.forecast === 'object' ? value.forecast : null
+    };
+  }
+
+  function hasWeatherLocation() {
+    return state.weather?.latitude !== null && state.weather?.latitude !== undefined && state.weather?.longitude !== null && state.weather?.longitude !== undefined && Number.isFinite(Number(state.weather.latitude)) && Number.isFinite(Number(state.weather.longitude));
+  }
+
+  function weatherCardHTML() {
+    const weather = normaliseWeatherState(state.weather);
+    if (!hasWeatherLocation()) {
+      return `
+        <section class="card weather-card weather-card-empty" data-action="open-weather-settings" role="button" tabindex="0">
+          <div class="weather-icon-large" aria-hidden="true">☀</div>
+          <div>
+            <div class="card-title">Weather</div>
+            <div class="muted">Choose your location in Settings.</div>
+          </div>
+        </section>`;
+    }
+
+    const forecast = weather.forecast;
+    if (!forecast?.current) {
+      return `
+        <section class="card weather-card">
+          <div>
+            <div class="card-title">Weather in ${escapeHTML(weather.locationName || 'your area')}</div>
+            <div class="muted">Loading the latest forecast…</div>
+          </div>
+          <button class="secondary-button" data-action="refresh-weather" type="button">Refresh</button>
+        </section>`;
+    }
+
+    const current = forecast.current;
+    const daily = Array.isArray(forecast.daily) ? forecast.daily.slice(0, 4) : [];
+    const condition = weatherCondition(current.code, current.isDay);
+    return `
+      <section class="card weather-card">
+        <div class="weather-current">
+          <div class="weather-icon-large" aria-hidden="true">${condition.icon}</div>
+          <div class="weather-current-copy">
+            <div class="weather-location">${escapeHTML(weather.locationName || 'Current location')}</div>
+            <div class="weather-temperature">${Math.round(current.temperature)}°</div>
+            <div class="weather-condition">${escapeHTML(condition.label)}</div>
+            <div class="weather-feels">Feels like ${Math.round(current.apparentTemperature)}°</div>
+          </div>
+        </div>
+        <div class="weather-days">
+          ${daily.map(day => {
+            const dayCondition = weatherCondition(day.code, true);
+            return `<div class="weather-day"><strong>${escapeHTML(day.label)}</strong><span class="weather-day-icon" aria-hidden="true">${dayCondition.icon}</span><span>${Math.round(day.max)}° / ${Math.round(day.min)}°</span>${Number.isFinite(day.rainChance) ? `<small>${Math.round(day.rainChance)}% rain</small>` : ''}</div>`;
+          }).join('')}
+        </div>
+        <button class="weather-refresh-button" data-action="refresh-weather" type="button" aria-label="Refresh weather">↻</button>
+      </section>`;
+  }
+
+  async function setWeatherLocationFromInput() {
+    const input = document.getElementById('weatherLocationInput');
+    const query = input?.value.trim();
+    if (!query) {
+      input?.focus();
+      showToast('Enter a town or city');
+      return;
+    }
+    showToast('Finding location…');
+    try {
+      const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Location search failed');
+      const payload = await response.json();
+      const place = payload.results?.[0];
+      if (!place) {
+        showToast('Location not found');
+        return;
+      }
+      const locationParts = [place.name, place.admin1, place.country].filter(Boolean);
+      state.weather = {
+        ...normaliseWeatherState(state.weather),
+        locationName: [...new Set(locationParts)].join(', '),
+        latitude: Number(place.latitude),
+        longitude: Number(place.longitude)
+      };
+      saveState();
+      await refreshWeather(true);
+      render();
+    } catch (error) {
+      console.error('Could not find weather location', error);
+      showToast('Could not find that location');
+    }
+  }
+
+  function useDeviceLocation() {
+    if (!navigator.geolocation) {
+      showToast('Location is not available on this tablet');
+      return;
+    }
+    showToast('Requesting tablet location…');
+    navigator.geolocation.getCurrentPosition(async position => {
+      state.weather = {
+        ...normaliseWeatherState(state.weather),
+        locationName: 'Current location',
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      };
+      saveState();
+      await refreshWeather(true);
+      render();
+    }, error => {
+      console.error('Could not use device location', error);
+      showToast(error.code === 1 ? 'Location permission was not allowed' : 'Could not get tablet location');
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 60 * 60 * 1000 });
+  }
+
+  async function refreshWeather(showMessage = false) {
+    if (!hasWeatherLocation()) {
+      if (showMessage) showToast('Choose a weather location first');
+      return;
+    }
+    if (showMessage) showToast('Refreshing weather…');
+    const { latitude, longitude } = state.weather;
+    const params = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      current: 'temperature_2m,apparent_temperature,weather_code,is_day,precipitation',
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+      timezone: 'auto',
+      forecast_days: '5'
+    });
+    try {
+      const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Weather request failed');
+      const payload = await response.json();
+      state.weather.forecast = normaliseForecast(payload);
+      state.weather.updatedAt = new Date().toISOString();
+      saveState();
+      if (currentView === 'today' || currentView === 'settings') render();
+      if (showMessage) showToast('Weather updated');
+    } catch (error) {
+      console.error('Could not refresh weather', error);
+      if (showMessage) showToast(state.weather.forecast ? 'Using the last saved forecast' : 'Weather is unavailable right now');
+    }
+  }
+
+  function normaliseForecast(payload) {
+    const daily = payload.daily || {};
+    return {
+      timezone: payload.timezone || '',
+      current: {
+        temperature: Number(payload.current?.temperature_2m ?? 0),
+        apparentTemperature: Number(payload.current?.apparent_temperature ?? payload.current?.temperature_2m ?? 0),
+        code: Number(payload.current?.weather_code ?? 0),
+        isDay: Number(payload.current?.is_day ?? 1) === 1,
+        precipitation: Number(payload.current?.precipitation ?? 0)
+      },
+      daily: (daily.time || []).map((date, index) => ({
+        date,
+        label: index === 0 ? 'Today' : new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(parseISODate(date)),
+        code: Number(daily.weather_code?.[index] ?? 0),
+        max: Number(daily.temperature_2m_max?.[index] ?? 0),
+        min: Number(daily.temperature_2m_min?.[index] ?? 0),
+        rainChance: Number(daily.precipitation_probability_max?.[index])
+      }))
+    };
+  }
+
+  function weatherCondition(code, isDay = true) {
+    const night = !isDay;
+    if (code === 0) return { icon: night ? '☾' : '☀', label: night ? 'Clear night' : 'Clear sky' };
+    if ([1, 2].includes(code)) return { icon: night ? '☾' : '⛅', label: code === 1 ? 'Mainly clear' : 'Partly cloudy' };
+    if (code === 3) return { icon: '☁', label: 'Cloudy' };
+    if ([45, 48].includes(code)) return { icon: '≋', label: 'Foggy' };
+    if ([51, 53, 55, 56, 57].includes(code)) return { icon: '🌦', label: 'Drizzle' };
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: '🌧', label: 'Rain' };
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: '❄', label: 'Snow' };
+    if ([95, 96, 99].includes(code)) return { icon: '⛈', label: 'Thunderstorms' };
+    return { icon: '☁', label: 'Changeable' };
   }
 
   function renderCalendar() {
@@ -472,6 +666,22 @@
           <p class="settings-note">Reloading or updating the app does not remove your family information. Do not clear Chrome’s site data unless you have made a backup.</p>
         </section>
 
+        <section class="card settings-card weather-settings-card">
+          <div class="card-heading">
+            <div>
+              <div class="card-title">Dashboard weather</div>
+              <div class="card-subtitle">Choose a town or use the tablet's current location.</div>
+            </div>
+          </div>
+          <div class="weather-location-controls">
+            <input id="weatherLocationInput" autocomplete="off" placeholder="e.g. London or Brighton" value="${escapeHTML(state.weather?.locationName || '')}">
+            <button class="primary-button" data-action="set-weather-location" type="button">Find location</button>
+            <button class="secondary-button" data-action="use-device-location" type="button">Use tablet location</button>
+            ${hasWeatherLocation() ? '<button class="secondary-button" data-action="refresh-weather" type="button">Refresh weather</button>' : ''}
+          </div>
+          <p class="settings-note">Weather is supplied by Open-Meteo. The most recent successful forecast is kept on the tablet, so the dashboard still has something to show if the internet is temporarily unavailable.</p>
+        </section>
+
         <section class="card settings-card backup-card">
           <div class="card-heading">
             <div>
@@ -546,10 +756,14 @@
     if (action === 'open-chores') setView('chores');
     if (action === 'open-meals') setView('meals');
     if (action === 'open-shopping') setView('shopping');
+    if (action === 'open-weather-settings') setView('settings');
     if (action === 'check-update') checkForPublishedVersion(true);
     if (action === 'reload-app') window.location.reload();
     if (action === 'export-backup') exportBackup();
     if (action === 'choose-restore') document.getElementById('restoreBackupInput')?.click();
+    if (action === 'set-weather-location') setWeatherLocationFromInput();
+    if (action === 'use-device-location') useDeviceLocation();
+    if (action === 'refresh-weather') refreshWeather(true);
     if (action === 'add-event') openEventModal();
     if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }
@@ -590,6 +804,11 @@
   }
 
   function onViewKeydown(event) {
+    if (event.target.id === 'weatherLocationInput' && event.key === 'Enter') {
+      event.preventDefault();
+      setWeatherLocationFromInput();
+      return;
+    }
     const input = event.target.closest('[data-quick-action]');
     if (!input || event.key !== 'Enter') return;
     event.preventDefault();
@@ -906,6 +1125,7 @@
     if (!restored.people.some(person => person.id === 'family')) {
       restored.people.push(structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'family')));
     }
+    restored.weather = normaliseWeatherState(restored.weather);
     return restored;
   }
 
@@ -943,6 +1163,7 @@
         const familyIndex = result.people.findIndex(person => person.id === 'family');
         result.people.splice(familyIndex >= 0 ? familyIndex : result.people.length, 0, structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'ophelia')));
       }
+      result.weather = normaliseWeatherState(result.weather);
       return result;
     } catch {
       return structuredCloneSafe(seed);
