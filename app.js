@@ -1,8 +1,6 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'family-hub-lenovo-v1';
-  const LAST_BACKUP_KEY = 'family-hub-last-backup';
   const BACKUP_FORMAT_VERSION = 1;
   const APP = window.APP_CONFIG || { name: 'Family Hub', version: '0.1.0', buildDate: '2026-07-27', storage: 'Local storage' };
   let serviceWorkerRegistration = null;
@@ -43,7 +41,9 @@
     ]
   };
 
-  let state = loadState();
+  let state = null;
+  let lastBackupAt = null;
+  let storageMode = 'IndexedDB';
   let currentView = 'today';
   let weekOffset = 0;
   let deferredInstallPrompt = null;
@@ -72,7 +72,11 @@
 
   initialise();
 
-  function initialise() {
+  async function initialise() {
+    const storageResult = await window.FamilyHubStorage.initialise(structuredCloneSafe(seed));
+    state = normaliseLoadedState(storageResult.state);
+    lastBackupAt = storageResult.lastBackup || null;
+    storageMode = storageResult.mode || 'IndexedDB';
     document.title = `${APP.name} v${APP.version}`;
     if (appVersion) appVersion.textContent = `v${APP.version}`;
     refreshPersonOptions();
@@ -457,7 +461,7 @@
           <dl class="settings-list">
             <div><dt>Version</dt><dd>v${escapeHTML(APP.version)}</dd></div>
             <div><dt>Built</dt><dd>${escapeHTML(formatBuildDate(APP.buildDate))}</dd></div>
-            <div><dt>Data storage</dt><dd>${escapeHTML(APP.storage || 'Local storage')}</dd></div>
+            <div><dt>Data storage</dt><dd>${escapeHTML(storageMode)}</dd></div>
             <div><dt>Last backup</dt><dd>${escapeHTML(formatLastBackup())}</dd></div>
             <div><dt>Update status</dt><dd id="settingsUpdateStatus">Checking…</dd></div>
           </dl>
@@ -858,7 +862,8 @@
     link.click();
     link.remove();
     URL.revokeObjectURL(link.href);
-    localStorage.setItem(LAST_BACKUP_KEY, createdAt);
+    lastBackupAt = createdAt;
+    window.FamilyHubStorage.setLastBackup(createdAt);
     render();
     showToast('Backup downloaded');
   }
@@ -905,7 +910,7 @@
   }
 
   function formatLastBackup() {
-    const value = localStorage.getItem(LAST_BACKUP_KEY);
+    const value = lastBackupAt;
     if (!value) return 'Not backed up yet';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return 'Unknown';
@@ -915,7 +920,10 @@
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.FamilyHubStorage.setState(structuredCloneSafe(state)).catch(error => {
+      console.error('Could not save Family Hub data', error);
+      showToast('Could not save changes');
+    });
     const status = document.getElementById('saveStatus');
     if (status) {
       status.textContent = 'Saved just now';
@@ -923,19 +931,19 @@
     }
   }
 
-  function loadState() {
+  function normaliseLoadedState(stored) {
     try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (!stored || !Array.isArray(stored.events) || !Array.isArray(stored.chores) || !stored.meals || !Array.isArray(stored.shopping)) {
         return structuredCloneSafe(seed);
       }
-      stored.events = stored.events.map(normaliseEvent);
-      stored.people = Array.isArray(stored.people) && stored.people.length ? stored.people : structuredCloneSafe(DEFAULT_PEOPLE);
-      if (!stored.people.some(person => person.id === 'ophelia')) {
-        const familyIndex = stored.people.findIndex(person => person.id === 'family');
-        stored.people.splice(familyIndex >= 0 ? familyIndex : stored.people.length, 0, structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'ophelia')));
+      const result = structuredCloneSafe(stored);
+      result.events = result.events.map(normaliseEvent);
+      result.people = Array.isArray(result.people) && result.people.length ? result.people : structuredCloneSafe(DEFAULT_PEOPLE);
+      if (!result.people.some(person => person.id === 'ophelia')) {
+        const familyIndex = result.people.findIndex(person => person.id === 'family');
+        result.people.splice(familyIndex >= 0 ? familyIndex : result.people.length, 0, structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'ophelia')));
       }
-      return stored;
+      return result;
     } catch {
       return structuredCloneSafe(seed);
     }
