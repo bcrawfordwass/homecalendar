@@ -2485,3 +2485,28 @@ body[data-day-period="evening"] .home-today-card {
 @media (max-width: 620px) {
   .household-name-controls { grid-template-columns: 1fr; }
 }
+
+/* v0.6.0 Google Calendar read/write */
+.google-sync-checkbox {
+  margin-top: 2px;
+  padding: 12px 14px;
+  border: 1px solid rgba(91, 75, 62, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.google-sync-checkbox input:disabled + span {
+  opacity: 0.72;
+}
+
+.local-event-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(91, 75, 62, 0.08);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}

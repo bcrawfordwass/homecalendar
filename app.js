@@ -86,6 +86,7 @@
   const eventEndTime = document.getElementById('eventEndTime');
   const eventPerson = document.getElementById('eventPerson');
   const eventRepeats = document.getElementById('eventRepeats');
+  const eventSyncGoogle = document.getElementById('eventSyncGoogle');
   const installButton = document.getElementById('installButton');
   const modalTitle = document.getElementById('modalTitle');
   const saveEventButton = document.getElementById('saveEventButton');
@@ -873,7 +874,7 @@
         <span class="event-time">${escapeHTML(eventTimeLabel(event, date))}</span>
         <span class="event-title" title="${escapeHTML(event.title)}">${escapeHTML(event.title)}</span>
         <span class="person-chip" style="--chip-colour:${person.chip}">${escapeHTML(person.name)}</span>
-        ${event.source === 'google' ? '<div class="event-actions"><span class="google-event-badge">Google</span></div>' : `<div class="event-actions"><button class="tiny-button" data-action="edit-event" data-id="${event.id}" type="button">Edit</button><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>`}
+        <div class="event-actions">${event.source === 'google' ? '<span class="google-event-badge">Google</span>' : '<span class="local-event-badge">Local</span>'}<button class="tiny-button" data-action="edit-event" data-id="${event.id}" type="button">Edit</button><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>
       </article>`;
   }
 
@@ -1078,9 +1079,9 @@
           <div class="card-heading">
             <div>
               <div class="card-title">Google Calendar</div>
-              <div class="card-subtitle">Import events from the family Google account into Family Hub.</div>
+              <div class="card-subtitle">Create, edit, delete and import events using the family Google account.</div>
             </div>
-            <span class="connection-pill ${state.googleCalendar?.lastSyncAt ? 'connected' : ''}">${state.googleCalendar?.lastSyncAt ? 'Imported' : 'Not connected'}</span>
+            <span class="connection-pill ${state.googleCalendar?.lastSyncAt ? 'connected' : ''}">${state.googleCalendar?.lastSyncAt ? 'Read & write' : 'Not connected'}</span>
           </div>
           <label class="google-client-field">
             <span>Google OAuth Client ID</span>
@@ -1088,14 +1089,14 @@
           </label>
           <div class="settings-actions">
             <button class="primary-button" data-action="sync-google-calendar" type="button">${state.googleCalendar?.lastSyncAt ? (googleTokenUsable() ? 'Sync now' : 'Reconnect Google Calendar') : 'Connect Google Calendar'}</button>
-            ${state.googleCalendar?.lastSyncAt ? '<button class="secondary-button" data-action="remove-google-events" type="button">Remove imported events</button>' : ''}
+            ${state.googleCalendar?.lastSyncAt ? '<button class="secondary-button" data-action="remove-google-events" type="button">Remove synced events</button>' : ''}
           </div>
           <dl class="settings-list compact-settings-list">
             <div><dt>Calendar</dt><dd>Primary calendar</dd></div>
             <div><dt>Last sync</dt><dd>${escapeHTML(formatGoogleSyncDate())}</dd></div>
-            <div><dt>Imported events</dt><dd>${Number(state.googleCalendar?.syncedCount || 0)}</dd></div>
+            <div><dt>Synced events</dt><dd>${Number(state.googleCalendar?.syncedCount || 0)}</dd></div>
           </dl>
-          <p class="settings-note">This integration is read-only. While Google access remains active, Family Hub checks for changes every 15 minutes and whenever the app returns to the foreground. If Google asks you to reconnect, tap the button above; your previously imported events remain available offline.</p>
+          <p class="settings-note">Family Hub can now create, edit and delete events on the primary Google Calendar. New events are synced by default while Google is connected. Google access is temporary, so you may occasionally be asked to reconnect before saving a change.</p>
         </section>
 
         <section class="card settings-card backup-card">
@@ -1205,8 +1206,7 @@
     if (action === 'this-week') { weekOffset = 0; render(); }
     if (action === 'delete-event') {
       const selectedEvent = state.events.find(entry => String(entry.id) === String(id));
-      if (selectedEvent?.source === 'google') showToast('Edit Google events in Google Calendar');
-      else deleteItem('events', id);
+      deleteCalendarEvent(id);
     }
     if (action === 'toggle-chore') toggleItem('chores', id);
     if (action === 'delete-chore') deleteItem('chores', id);
@@ -1282,10 +1282,6 @@
 
   function openEventModal(id = null) {
     const selectedEvent = id ? state.events.find(entry => String(entry.id) === String(id)) : null;
-    if (selectedEvent?.source === 'google') {
-      showToast('Edit Google events in Google Calendar');
-      return;
-    }
     const week = weekDates(weekOffset);
     eventForm.reset();
     editingEventId = id;
@@ -1302,6 +1298,10 @@
       eventEndTime.value = event.endTime;
       eventPerson.value = event.person;
       eventRepeats.checked = Boolean(event.repeats);
+      if (eventSyncGoogle) {
+        eventSyncGoogle.checked = event.source === 'google' || Boolean(event.syncToGoogle);
+        eventSyncGoogle.disabled = event.source === 'google';
+      }
     } else {
       modalTitle.textContent = 'Add an event';
       saveEventButton.textContent = 'Add event';
@@ -1311,6 +1311,10 @@
       eventEndTime.value = '';
       eventPerson.value = 'family';
       eventRepeats.checked = false;
+      if (eventSyncGoogle) {
+        eventSyncGoogle.checked = Boolean(state.googleCalendar?.lastSyncAt);
+        eventSyncGoogle.disabled = false;
+      }
     }
 
     eventEndDate.min = eventStartDate.value;
@@ -1321,9 +1325,10 @@
   function closeEventModal() {
     modalBackdrop.classList.add('hidden');
     editingEventId = null;
+    if (eventSyncGoogle) eventSyncGoogle.disabled = false;
   }
 
-  function addEvent(event) {
+  async function addEvent(event) {
     event.preventDefault();
     const title = eventTitle.value.trim();
     if (!title || !eventStartDate.value) return;
@@ -1338,6 +1343,8 @@
       eventEndTime.focus();
       return;
     }
+
+    const existing = editingEventId ? state.events.find(entry => String(entry.id) === String(editingEventId)) : null;
     const eventData = {
       title,
       startDate: eventStartDate.value,
@@ -1345,20 +1352,82 @@
       startTime: eventStartTime.value,
       endTime: eventEndTime.value,
       person: eventPerson.value,
-      repeats: eventRepeats.checked
+      repeats: eventRepeats.checked,
+      syncToGoogle: Boolean(eventSyncGoogle?.checked)
     };
 
-    if (editingEventId) {
-      const index = state.events.findIndex(entry => String(entry.id) === String(editingEventId));
-      if (index !== -1) state.events[index] = { ...state.events[index], ...eventData };
-      closeEventModal();
-      saveAndRender('Event updated');
-      return;
-    }
+    try {
+      saveEventButton.disabled = true;
+      saveEventButton.textContent = existing ? 'Saving…' : 'Adding…';
 
-    state.events.push({ id: uid(), ...eventData });
-    closeEventModal();
-    saveAndRender('Event added');
+      if (existing?.source === 'google') {
+        await ensureGoogleWriteAccess();
+        const updatedGoogle = await updateGoogleCalendarEvent(existing.googleEventId, eventData);
+        const converted = convertGoogleEvent(updatedGoogle);
+        if (!converted) throw new Error('Google returned an invalid event');
+        state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, person: eventData.person };
+        closeEventModal();
+        saveAndRender('Google event updated');
+        return;
+      }
+
+      if (existing) {
+        if (eventData.syncToGoogle && !existing.googleEventId) {
+          await ensureGoogleWriteAccess();
+          const createdGoogle = await createGoogleCalendarEvent(eventData, existing.id);
+          const converted = convertGoogleEvent(createdGoogle);
+          state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, person: eventData.person };
+          closeEventModal();
+          saveAndRender('Event added to Google Calendar');
+          return;
+        }
+        const index = state.events.findIndex(entry => String(entry.id) === String(editingEventId));
+        if (index !== -1) state.events[index] = { ...state.events[index], ...eventData, source: 'local', readOnly: false };
+        closeEventModal();
+        saveAndRender('Event updated');
+        return;
+      }
+
+      const localId = uid();
+      if (eventData.syncToGoogle) {
+        await ensureGoogleWriteAccess();
+        const createdGoogle = await createGoogleCalendarEvent(eventData, localId);
+        const converted = convertGoogleEvent(createdGoogle);
+        state.events.push({ ...converted, person: eventData.person });
+        closeEventModal();
+        saveAndRender('Event added to Google Calendar');
+        return;
+      }
+
+      state.events.push({ id: localId, source: 'local', readOnly: false, ...eventData });
+      closeEventModal();
+      saveAndRender('Event added');
+    } catch (error) {
+      console.error('Could not save event', error);
+      showToast(googleErrorMessage(error, 'Event could not be saved'));
+    } finally {
+      saveEventButton.disabled = false;
+      saveEventButton.textContent = editingEventId ? 'Save changes' : 'Add event';
+    }
+  }
+
+  async function deleteCalendarEvent(id) {
+    const selectedEvent = state.events.find(entry => String(entry.id) === String(id));
+    if (!selectedEvent) return;
+    const confirmed = window.confirm(`Delete “${selectedEvent.title}”?${selectedEvent.source === 'google' ? ' This will also delete it from Google Calendar.' : ''}`);
+    if (!confirmed) return;
+
+    try {
+      if (selectedEvent.source === 'google' && selectedEvent.googleEventId) {
+        await ensureGoogleWriteAccess();
+        await deleteGoogleCalendarEvent(selectedEvent.googleEventId);
+      }
+      state.events = state.events.filter(entry => String(entry.id) !== String(id));
+      saveAndRender(selectedEvent.source === 'google' ? 'Google event deleted' : 'Event deleted');
+    } catch (error) {
+      console.error('Could not delete event', error);
+      showToast(googleErrorMessage(error, 'Event could not be deleted'));
+    }
   }
 
   function eventsForDate(date) {
@@ -1689,7 +1758,7 @@
       await waitForGoogleIdentityServices();
       googleTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        scope: 'https://www.googleapis.com/auth/calendar.events',
         callback: async response => {
           if (response?.error) {
             console.error('Google authorization failed', response);
@@ -1702,7 +1771,7 @@
           await syncGoogleCalendar();
         }
       });
-      googleTokenClient.requestAccessToken({ prompt: googleAccessToken ? '' : 'consent' });
+      googleTokenClient.requestAccessToken({ prompt: 'consent' });
     } catch (error) {
       console.error('Could not start Google Calendar connection', error);
       showToast('Google Calendar could not be opened');
@@ -1740,8 +1809,14 @@
         .map(convertGoogleEvent)
         .filter(Boolean);
 
+      const existingGooglePeople = new Map(state.events
+        .filter(event => event.source === 'google' && event.googleEventId)
+        .map(event => [event.googleEventId, event.person]));
       state.events = state.events.filter(event => event.source !== 'google');
-      state.events.push(...importedEvents);
+      state.events.push(...importedEvents.map(event => ({
+        ...event,
+        person: event.person !== 'family' ? event.person : (existingGooglePeople.get(event.googleEventId) || 'family')
+      })));
       state.googleCalendar = {
         ...normaliseGoogleCalendarState(state.googleCalendar),
         lastSyncAt: new Date().toISOString(),
@@ -1760,6 +1835,124 @@
     } finally {
       googleSyncInProgress = false;
     }
+  }
+
+  async function ensureGoogleWriteAccess() {
+    if (googleTokenUsable()) return;
+    await requestGoogleAccessToken();
+  }
+
+  function requestGoogleAccessToken() {
+    const clientId = state.googleCalendar?.clientId || '';
+    if (!clientId) throw new Error('Connect Google Calendar in Settings first');
+    return waitForGoogleIdentityServices().then(() => new Promise((resolve, reject) => {
+      googleTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/calendar.events',
+        callback: response => {
+          if (response?.error || !response?.access_token) {
+            reject(new Error('Google connection was not completed'));
+            return;
+          }
+          googleAccessToken = response.access_token;
+          const lifetimeSeconds = Number(response.expires_in || 3600);
+          googleAccessTokenExpiresAt = Date.now() + Math.max(60, lifetimeSeconds - 60) * 1000;
+          resolve();
+        }
+      });
+      googleTokenClient.requestAccessToken({ prompt: 'consent' });
+    }));
+  }
+
+  function googleEventPayload(eventData, familyHubId = '') {
+    const payload = {
+      summary: eventData.title,
+      extendedProperties: {
+        private: {
+          familyHub: 'true',
+          familyHubId: String(familyHubId || ''),
+          familyHubPerson: String(eventData.person || 'family')
+        }
+      }
+    };
+
+    if (!eventData.startTime) {
+      payload.start = { date: eventData.startDate };
+      payload.end = { date: addDaysISO(eventData.endDate || eventData.startDate, 1) };
+    } else {
+      const start = localDateTime(eventData.startDate, eventData.startTime);
+      let end;
+      if (eventData.endTime) end = localDateTime(eventData.endDate || eventData.startDate, eventData.endTime);
+      else {
+        end = new Date(start.getTime() + 60 * 60 * 1000);
+        if ((eventData.endDate || eventData.startDate) !== eventData.startDate) {
+          end = localDateTime(eventData.endDate, eventData.startTime);
+        }
+      }
+      payload.start = { dateTime: start.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+      payload.end = { dateTime: end.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+    }
+
+    if (eventData.repeats) payload.recurrence = ['RRULE:FREQ=WEEKLY'];
+    return payload;
+  }
+
+  function localDateTime(date, time) {
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour, minute] = time.split(':').map(Number);
+    return new Date(year, month - 1, day, hour, minute, 0, 0);
+  }
+
+  async function googleCalendarRequest(path, options = {}) {
+    if (!googleTokenUsable()) throw new Error('Reconnect Google Calendar');
+    const response = await fetch(`https://www.googleapis.com/calendar/v3${path}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${googleAccessToken}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      }
+    });
+    if (response.status === 401) {
+      googleAccessToken = null;
+      googleAccessTokenExpiresAt = 0;
+      throw new Error('Reconnect Google Calendar');
+    }
+    if (!response.ok) {
+      let detail = '';
+      try { detail = (await response.json())?.error?.message || ''; } catch {}
+      throw new Error(detail || `Google Calendar returned ${response.status}`);
+    }
+    if (response.status === 204) return null;
+    return response.json();
+  }
+
+  function createGoogleCalendarEvent(eventData, familyHubId) {
+    const calendarId = encodeURIComponent(state.googleCalendar?.calendarId || 'primary');
+    return googleCalendarRequest(`/calendars/${calendarId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(googleEventPayload(eventData, familyHubId))
+    });
+  }
+
+  function updateGoogleCalendarEvent(googleEventId, eventData) {
+    const calendarId = encodeURIComponent(state.googleCalendar?.calendarId || 'primary');
+    return googleCalendarRequest(`/calendars/${calendarId}/events/${encodeURIComponent(googleEventId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(googleEventPayload(eventData, googleEventId))
+    });
+  }
+
+  function deleteGoogleCalendarEvent(googleEventId) {
+    const calendarId = encodeURIComponent(state.googleCalendar?.calendarId || 'primary');
+    return googleCalendarRequest(`/calendars/${calendarId}/events/${encodeURIComponent(googleEventId)}`, { method: 'DELETE' });
+  }
+
+  function googleErrorMessage(error, fallback) {
+    const message = String(error?.message || '');
+    if (/reconnect|connect google/i.test(message)) return message;
+    if (/forbidden|permission|insufficient/i.test(message)) return 'Google Calendar permission was denied';
+    return message || fallback;
   }
 
   async function fetchGoogleCalendarEvents(accessToken, calendarId) {
@@ -1821,22 +2014,23 @@
       id: `google-${item.id}`,
       googleEventId: item.id,
       source: 'google',
-      readOnly: true,
+      readOnly: false,
       title,
       startDate,
       endDate,
       startTime,
       endTime,
-      person: 'family',
+      person: item.extendedProperties?.private?.familyHubPerson || 'family',
       repeats: false,
-      htmlLink: item.htmlLink || ''
+      htmlLink: item.htmlLink || '',
+      syncToGoogle: true
     };
   }
 
   function removeGoogleEvents() {
     const importedCount = state.events.filter(event => event.source === 'google').length;
     if (!importedCount) return;
-    const confirmed = window.confirm(`Remove ${importedCount} imported Google Calendar ${importedCount === 1 ? 'event' : 'events'} from Family Hub? This will not delete anything from Google Calendar.`);
+    const confirmed = window.confirm(`Remove ${importedCount} synced Google Calendar ${importedCount === 1 ? 'event' : 'events'} from Family Hub? This will not delete anything from Google Calendar.`);
     if (!confirmed) return;
     state.events = state.events.filter(event => event.source !== 'google');
     state.googleCalendar = {
@@ -1845,7 +2039,7 @@
       syncedCount: 0
     };
     googleAccessToken = null;
-    saveAndRender('Imported Google events removed');
+    saveAndRender('Synced Google events removed');
   }
 
   function showToast(message) {
