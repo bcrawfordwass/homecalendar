@@ -264,38 +264,23 @@
 
           <section class="card glance-stat-card" data-action="open-chores" role="button" tabindex="0">
             <div class="stat-icon" aria-hidden="true">✓</div>
-            <div class="stat-card-content">
-              <div class="stat-card-heading">
-                <div class="card-title">Chores</div>
-                <div class="stat-count">${openChores.length}</div>
-              </div>
-              ${dashboardPreviewHTML(openChores, 'No chores left')}
+            <div>
+              <div class="card-title">Chores</div>
+              <div class="stat-number">${openChores.length}</div>
+              <div class="muted">${openChores.length === 1 ? 'job still to do' : 'jobs still to do'}</div>
             </div>
           </section>
 
           <section class="card glance-stat-card" data-action="open-shopping" role="button" tabindex="0">
             <div class="stat-icon" aria-hidden="true">⌑</div>
-            <div class="stat-card-content">
-              <div class="stat-card-heading">
-                <div class="card-title">Shopping</div>
-                <div class="stat-count">${remainingShopping.length}</div>
-              </div>
-              ${dashboardPreviewHTML(remainingShopping, 'Nothing to buy')}
+            <div>
+              <div class="card-title">Shopping</div>
+              <div class="stat-number">${remainingShopping.length}</div>
+              <div class="muted">${remainingShopping.length === 1 ? 'item left' : 'items left'}</div>
             </div>
           </section>
         </div>
       </div>`;
-  }
-
-  function dashboardPreviewHTML(items, emptyLabel) {
-    if (!items.length) return `<div class="dashboard-preview-empty">${escapeHTML(emptyLabel)}</div>`;
-    const visible = items.slice(0, 2);
-    const remaining = items.length - visible.length;
-    return `
-      <ul class="dashboard-preview-list">
-        ${visible.map(item => `<li>${escapeHTML(item.title)}</li>`).join('')}
-      </ul>
-      ${remaining > 0 ? `<div class="dashboard-preview-more">+${remaining} more</div>` : ''}`;
   }
 
   function weekDaySummaryHTML(date, today) {
