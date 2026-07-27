@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#23312c">
+  <meta name="description" content="A tablet-friendly family calendar, chores, meals and shopping hub.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Family Hub</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand" aria-label="Family Hub">
+        <span class="brand-mark" aria-hidden="true">FH</span>
+        <span class="brand-name">Family Hub</span>
+      </div>
+      <nav id="mainNav">
+        <button class="nav-button active" data-view="today" type="button">
+          <span class="nav-icon" aria-hidden="true">⌂</span><span>Today</span>
+        </button>
+        <button class="nav-button" data-view="calendar" type="button">
+          <span class="nav-icon" aria-hidden="true">▦</span><span>Calendar</span>
+        </button>
+        <button class="nav-button" data-view="chores" type="button">
+          <span class="nav-icon" aria-hidden="true">✓</span><span>Chores</span>
+        </button>
+        <button class="nav-button" data-view="meals" type="button">
+          <span class="nav-icon" aria-hidden="true">◉</span><span>Meals</span>
+        </button>
+        <button class="nav-button" data-view="shopping" type="button">
+          <span class="nav-icon" aria-hidden="true">⌑</span><span>Shopping</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="saveStatus" class="save-status">Saved on this tablet</span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <div id="fullDate" class="eyebrow"></div>
+          <h1 id="viewTitle">Good evening</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="installButton" class="secondary-button hidden" type="button">Install app</button>
+          <div id="clock" class="clock" aria-label="Current time"></div>
+        </div>
+      </header>
+
+      <section id="viewRoot" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop hidden" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-heading">
+        <div>
+          <div class="eyebrow">Family calendar</div>
+          <h2 id="modalTitle">Add an event</h2>
+        </div>
+        <button id="closeModalButton" class="icon-button" type="button" aria-label="Close">×</button>
+      </div>
+      <form id="eventForm">
+        <label>
+          <span>What is happening?</span>
+          <input id="eventTitle" name="title" autocomplete="off" placeholder="Swimming lesson" required>
+        </label>
+        <div class="form-row">
+          <label>
+            <span>Date</span>
+            <input id="eventDate" name="date" type="date" required>
+          </label>
+          <label>
+            <span>Time</span>
+            <input id="eventTime" name="time" type="time" value="09:00" required>
+          </label>
+        </div>
+        <label>
+          <span>Who is it for?</span>
+          <select id="eventPerson" name="person"></select>
+        </label>
+        <label class="checkbox-label">
+          <input id="eventRepeats" name="repeats" type="checkbox">
+          <span>Repeat every week</span>
+        </label>
+        <div class="modal-actions">
+          <button id="cancelModalButton" class="secondary-button" type="button">Cancel</button>
+          <button class="primary-button" type="submit">Add event</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>

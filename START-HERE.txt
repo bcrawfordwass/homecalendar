@@ -1,0 +1,21 @@
+FAMILY HUB FOR BEN'S LENOVO TABLET
+==================================
+
+FASTEST TEST
+1. Open Family-Hub-Standalone.html in Chrome on a computer or Android tablet.
+2. The app saves events, chores, meals and shopping items in that browser.
+
+FULL INSTALLABLE VERSION
+1. Upload this whole folder to any HTTPS static host.
+2. Open the hosted address in Chrome on the Lenovo tablet.
+3. Choose Chrome menu > Install app (or Add to Home screen).
+
+CONTENTS
+- index.html, styles.css and app.js: the full web app
+- manifest.webmanifest and service-worker.js: install/offline support
+- icons/: Android home-screen icons
+- Family-Hub-Standalone.html: one-file version for immediate testing
+
+CURRENT LIMITATION
+Google Calendar sync is not connected in this starter release. Data is local to
+the browser/device until a cloud backend and Google Calendar API are added.
