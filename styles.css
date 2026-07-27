@@ -1001,3 +1001,17 @@ body.nav-expanded .update-banner {
   .week-at-glance { grid-template-columns: 1fr; }
   .glance-side-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+
+/* Google Calendar integration */
+.google-calendar-settings-card { grid-column: 1 / -1; }
+.google-client-field { display: grid; gap: 8px; margin: 4px 0 16px; }
+.google-client-field span { font-weight: 700; }
+.google-client-field input { width: 100%; min-height: 48px; }
+.connection-pill { align-self: flex-start; border-radius: 999px; padding: 7px 11px; background: #eee9df; color: #6c675d; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.connection-pill.connected { background: #dff2e8; color: #286447; }
+.compact-settings-list { margin-top: 18px; }
+.google-event-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 8px; background: #e9f1ff; color: #325ea8; font-size: 11px; font-weight: 800; }
+@media (max-width: 900px) {
+  .google-calendar-settings-card .card-heading { align-items: flex-start; gap: 12px; }
+}

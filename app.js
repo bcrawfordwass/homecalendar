@@ -45,6 +45,12 @@
       longitude: null,
       updatedAt: null,
       forecast: null
+    },
+    googleCalendar: {
+      clientId: '',
+      calendarId: 'primary',
+      lastSyncAt: null,
+      syncedCount: 0
     }
   };
 
@@ -55,6 +61,9 @@
   let weekOffset = 0;
   let deferredInstallPrompt = null;
   let editingEventId = null;
+  let googleTokenClient = null;
+  let googleAccessToken = null;
+  let googleSyncInProgress = false;
 
   const viewRoot = document.getElementById('viewRoot');
   const viewTitle = document.getElementById('viewTitle');
@@ -517,7 +526,7 @@
         <span class="event-time">${escapeHTML(eventTimeLabel(event, date))}</span>
         <span class="event-title" title="${escapeHTML(event.title)}">${escapeHTML(event.title)}</span>
         <span class="person-chip" style="--chip-colour:${person.chip}">${escapeHTML(person.name)}</span>
-        <div class="event-actions"><button class="tiny-button" data-action="edit-event" data-id="${event.id}" type="button">Edit</button><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>
+        ${event.source === 'google' ? '<div class="event-actions"><span class="google-event-badge">Google</span></div>' : `<div class="event-actions"><button class="tiny-button" data-action="edit-event" data-id="${event.id}" type="button">Edit</button><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>`}
       </article>`;
   }
 
@@ -704,6 +713,30 @@
           <p class="settings-note">Weather is supplied by Open-Meteo. The most recent successful forecast is kept on the tablet, so the dashboard still has something to show if the internet is temporarily unavailable.</p>
         </section>
 
+        <section class="card settings-card google-calendar-settings-card">
+          <div class="card-heading">
+            <div>
+              <div class="card-title">Google Calendar</div>
+              <div class="card-subtitle">Import events from the family Google account into Family Hub.</div>
+            </div>
+            <span class="connection-pill ${state.googleCalendar?.lastSyncAt ? 'connected' : ''}">${state.googleCalendar?.lastSyncAt ? 'Imported' : 'Not connected'}</span>
+          </div>
+          <label class="google-client-field">
+            <span>Google OAuth Client ID</span>
+            <input id="googleClientIdInput" autocomplete="off" placeholder="1234567890-abc.apps.googleusercontent.com" value="${escapeHTML(state.googleCalendar?.clientId || '')}">
+          </label>
+          <div class="settings-actions">
+            <button class="primary-button" data-action="connect-google-calendar" type="button">${state.googleCalendar?.lastSyncAt ? 'Connect and sync again' : 'Connect Google Calendar'}</button>
+            ${state.googleCalendar?.lastSyncAt ? '<button class="secondary-button" data-action="remove-google-events" type="button">Remove imported events</button>' : ''}
+          </div>
+          <dl class="settings-list compact-settings-list">
+            <div><dt>Calendar</dt><dd>Primary calendar</dd></div>
+            <div><dt>Last sync</dt><dd>${escapeHTML(formatGoogleSyncDate())}</dd></div>
+            <div><dt>Imported events</dt><dd>${Number(state.googleCalendar?.syncedCount || 0)}</dd></div>
+          </dl>
+          <p class="settings-note">This first integration is read-only: Google events appear in Family Hub, but editing them still happens in Google Calendar. Imported events remain available offline after a successful sync.</p>
+        </section>
+
         <section class="card settings-card backup-card">
           <div class="card-heading">
             <div>
@@ -786,12 +819,18 @@
     if (action === 'set-weather-location') setWeatherLocationFromInput();
     if (action === 'use-device-location') useDeviceLocation();
     if (action === 'refresh-weather') refreshWeather(true);
+    if (action === 'connect-google-calendar') connectGoogleCalendar();
+    if (action === 'remove-google-events') removeGoogleEvents();
     if (action === 'add-event') openEventModal();
     if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }
     if (action === 'next-week') { weekOffset += 1; render(); }
     if (action === 'this-week') { weekOffset = 0; render(); }
-    if (action === 'delete-event') deleteItem('events', id);
+    if (action === 'delete-event') {
+      const selectedEvent = state.events.find(entry => String(entry.id) === String(id));
+      if (selectedEvent?.source === 'google') showToast('Edit Google events in Google Calendar');
+      else deleteItem('events', id);
+    }
     if (action === 'toggle-chore') toggleItem('chores', id);
     if (action === 'delete-chore') deleteItem('chores', id);
     if (action === 'toggle-shopping') toggleItem('shopping', id);
@@ -865,6 +904,11 @@
   }
 
   function openEventModal(id = null) {
+    const selectedEvent = id ? state.events.find(entry => String(entry.id) === String(id)) : null;
+    if (selectedEvent?.source === 'google') {
+      showToast('Edit Google events in Google Calendar');
+      return;
+    }
     const week = weekDates(weekOffset);
     eventForm.reset();
     editingEventId = id;
@@ -1148,6 +1192,7 @@
       restored.people.push(structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'family')));
     }
     restored.weather = normaliseWeatherState(restored.weather);
+    restored.googleCalendar = normaliseGoogleCalendarState(restored.googleCalendar);
     return restored;
   }
 
@@ -1186,10 +1231,199 @@
         result.people.splice(familyIndex >= 0 ? familyIndex : result.people.length, 0, structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'ophelia')));
       }
       result.weather = normaliseWeatherState(result.weather);
+      result.googleCalendar = normaliseGoogleCalendarState(result.googleCalendar);
       return result;
     } catch {
       return structuredCloneSafe(seed);
     }
+  }
+
+  function normaliseGoogleCalendarState(value) {
+    return {
+      clientId: typeof value?.clientId === 'string' ? value.clientId.trim() : '',
+      calendarId: typeof value?.calendarId === 'string' && value.calendarId ? value.calendarId : 'primary',
+      lastSyncAt: value?.lastSyncAt || null,
+      syncedCount: Number.isFinite(Number(value?.syncedCount)) ? Number(value.syncedCount) : 0
+    };
+  }
+
+  function formatGoogleSyncDate() {
+    const value = state.googleCalendar?.lastSyncAt;
+    if (!value) return 'Never';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }).format(date);
+  }
+
+  async function connectGoogleCalendar() {
+    if (googleSyncInProgress) return;
+    const input = document.getElementById('googleClientIdInput');
+    const clientId = input?.value.trim() || state.googleCalendar?.clientId || '';
+    if (!clientId || !clientId.endsWith('.apps.googleusercontent.com')) {
+      showToast('Enter the Google OAuth Client ID first');
+      input?.focus();
+      return;
+    }
+
+    state.googleCalendar = {
+      ...normaliseGoogleCalendarState(state.googleCalendar),
+      clientId
+    };
+    saveState();
+
+    try {
+      await waitForGoogleIdentityServices();
+      googleTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        callback: async response => {
+          if (response?.error) {
+            console.error('Google authorization failed', response);
+            showToast('Google connection was not completed');
+            return;
+          }
+          googleAccessToken = response.access_token;
+          await syncGoogleCalendar();
+        }
+      });
+      googleTokenClient.requestAccessToken({ prompt: googleAccessToken ? '' : 'consent' });
+    } catch (error) {
+      console.error('Could not start Google Calendar connection', error);
+      showToast('Google Calendar could not be opened');
+    }
+  }
+
+  function waitForGoogleIdentityServices() {
+    if (window.google?.accounts?.oauth2) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const started = Date.now();
+      const timer = window.setInterval(() => {
+        if (window.google?.accounts?.oauth2) {
+          window.clearInterval(timer);
+          resolve();
+        } else if (Date.now() - started > 10000) {
+          window.clearInterval(timer);
+          reject(new Error('Google Identity Services did not load'));
+        }
+      }, 100);
+    });
+  }
+
+  async function syncGoogleCalendar() {
+    if (!googleAccessToken || googleSyncInProgress) return;
+    googleSyncInProgress = true;
+    showToast('Syncing Google Calendar…');
+    try {
+      const googleEvents = await fetchGoogleCalendarEvents(googleAccessToken, state.googleCalendar?.calendarId || 'primary');
+      const importedEvents = googleEvents
+        .filter(item => item.status !== 'cancelled')
+        .map(convertGoogleEvent)
+        .filter(Boolean);
+
+      state.events = state.events.filter(event => event.source !== 'google');
+      state.events.push(...importedEvents);
+      state.googleCalendar = {
+        ...normaliseGoogleCalendarState(state.googleCalendar),
+        lastSyncAt: new Date().toISOString(),
+        syncedCount: importedEvents.length
+      };
+      saveState();
+      render();
+      showToast(`${importedEvents.length} Google ${importedEvents.length === 1 ? 'event' : 'events'} imported`);
+    } catch (error) {
+      console.error('Could not sync Google Calendar', error);
+      showToast(error?.message === 'Google authorization expired' ? 'Reconnect Google Calendar to sync' : 'Google Calendar sync failed');
+    } finally {
+      googleSyncInProgress = false;
+    }
+  }
+
+  async function fetchGoogleCalendarEvents(accessToken, calendarId) {
+    const items = [];
+    let pageToken = '';
+    const timeMin = new Date();
+    timeMin.setDate(timeMin.getDate() - 30);
+    const timeMax = new Date();
+    timeMax.setFullYear(timeMax.getFullYear() + 1);
+
+    do {
+      const params = new URLSearchParams({
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: 'true',
+        showDeleted: 'false',
+        orderBy: 'startTime',
+        maxResults: '2500'
+      });
+      if (pageToken) params.set('pageToken', pageToken);
+      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (response.status === 401) throw new Error('Google authorization expired');
+      if (!response.ok) throw new Error(`Google Calendar returned ${response.status}`);
+      const payload = await response.json();
+      items.push(...(Array.isArray(payload.items) ? payload.items : []));
+      pageToken = payload.nextPageToken || '';
+    } while (pageToken);
+
+    return items;
+  }
+
+  function convertGoogleEvent(item) {
+    if (!item?.id || !item.start) return null;
+    const title = item.summary?.trim() || 'Busy';
+    const allDay = Boolean(item.start.date);
+    let startDate;
+    let endDate;
+    let startTime = '';
+    let endTime = '';
+
+    if (allDay) {
+      startDate = item.start.date;
+      const exclusiveEnd = item.end?.date || item.start.date;
+      endDate = addDaysISO(exclusiveEnd, -1);
+      if (endDate < startDate) endDate = startDate;
+    } else {
+      const start = new Date(item.start.dateTime);
+      const end = new Date(item.end?.dateTime || item.start.dateTime);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+      startDate = toISODate(start);
+      endDate = toISODate(end);
+      startTime = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+      endTime = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+    }
+
+    return {
+      id: `google-${item.id}`,
+      googleEventId: item.id,
+      source: 'google',
+      readOnly: true,
+      title,
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      person: 'family',
+      repeats: false,
+      htmlLink: item.htmlLink || ''
+    };
+  }
+
+  function removeGoogleEvents() {
+    const importedCount = state.events.filter(event => event.source === 'google').length;
+    if (!importedCount) return;
+    const confirmed = window.confirm(`Remove ${importedCount} imported Google Calendar ${importedCount === 1 ? 'event' : 'events'} from Family Hub? This will not delete anything from Google Calendar.`);
+    if (!confirmed) return;
+    state.events = state.events.filter(event => event.source !== 'google');
+    state.googleCalendar = {
+      ...normaliseGoogleCalendarState(state.googleCalendar),
+      lastSyncAt: null,
+      syncedCount: 0
+    };
+    googleAccessToken = null;
+    saveAndRender('Imported Google events removed');
   }
 
   function showToast(message) {

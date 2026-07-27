@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=0.3.1">
+  <link rel="stylesheet" href="./styles.css?v=0.4.0">
   <title>Family Hub</title>
 </head>
 <body>
@@ -16,30 +16,29 @@
     <aside class="sidebar" aria-label="Main navigation">
       <div class="brand" aria-label="Family Hub">
         <span class="brand-mark" aria-hidden="true">FH</span>
-        <span class="brand-name nav-label">Family Hub</span>
-        <button id="navToggle" class="nav-toggle" type="button" aria-label="Expand navigation" aria-expanded="false">›</button>
+        <span class="brand-name">Family Hub</span>
       </div>
       <nav id="mainNav">
         <button class="nav-button active" data-view="today" type="button">
-          <span class="nav-icon" aria-hidden="true">⌂</span><span class="nav-label">Today</span>
+          <span class="nav-icon" aria-hidden="true">⌂</span><span>Today</span>
         </button>
         <button class="nav-button" data-view="calendar" type="button">
-          <span class="nav-icon" aria-hidden="true">▦</span><span class="nav-label">Calendar</span>
+          <span class="nav-icon" aria-hidden="true">▦</span><span>Calendar</span>
         </button>
         <button class="nav-button" data-view="chores" type="button">
-          <span class="nav-icon" aria-hidden="true">✓</span><span class="nav-label">Chores</span>
+          <span class="nav-icon" aria-hidden="true">✓</span><span>Chores</span>
         </button>
         <button class="nav-button" data-view="meals" type="button">
-          <span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Meals</span>
+          <span class="nav-icon" aria-hidden="true">◉</span><span>Meals</span>
         </button>
         <button class="nav-button" data-view="shopping" type="button">
-          <span class="nav-icon" aria-hidden="true">⌑</span><span class="nav-label">Shopping</span>
+          <span class="nav-icon" aria-hidden="true">⌑</span><span>Shopping</span>
         </button>
         <button class="nav-button" data-view="people" type="button">
-          <span class="nav-icon" aria-hidden="true">☺</span><span class="nav-label">People</span>
+          <span class="nav-icon" aria-hidden="true">☺</span><span>People</span>
         </button>
         <button class="nav-button" data-view="settings" type="button">
-          <span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-label">Settings</span>
+          <span class="nav-icon" aria-hidden="true">⚙</span><span>Settings</span>
         </button>
       </nav>
       <div class="sidebar-footer">
@@ -123,8 +122,9 @@
     </section>
   </div>
 
-  <script src="./config.js?v=0.3.1"></script>
-  <script src="./storage.js?v=0.3.1"></script>
-  <script src="./app.js?v=0.3.1" defer></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="./config.js?v=0.4.0"></script>
+  <script src="./storage.js?v=0.4.0"></script>
+  <script src="./app.js?v=0.4.0" defer></script>
 </body>
 </html>
