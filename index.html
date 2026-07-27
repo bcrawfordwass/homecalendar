@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=0.1.0">
   <title>Family Hub</title>
 </head>
 <body>
@@ -37,9 +37,13 @@
         <button class="nav-button" data-view="people" type="button">
           <span class="nav-icon" aria-hidden="true">☺</span><span>People</span>
         </button>
+        <button class="nav-button" data-view="settings" type="button">
+          <span class="nav-icon" aria-hidden="true">⚙</span><span>Settings</span>
+        </button>
       </nav>
       <div class="sidebar-footer">
         <span id="saveStatus" class="save-status">Saved on this tablet</span>
+        <span id="appVersion" class="app-version">v0.1.0</span>
       </div>
     </aside>
 
@@ -57,6 +61,14 @@
 
       <section id="viewRoot" aria-live="polite"></section>
     </main>
+  </div>
+
+  <div id="updateBanner" class="update-banner hidden" role="status">
+    <div>
+      <strong>Family Hub has an update ready</strong>
+      <span>Your events, meals and lists will stay safely on this tablet.</span>
+    </div>
+    <button id="updateNowButton" class="primary-button" type="button">Update now</button>
   </div>
 
   <div id="modalBackdrop" class="modal-backdrop hidden" role="presentation">
@@ -110,6 +122,7 @@
     </section>
   </div>
 
-  <script src="./app.js" defer></script>
+  <script src="./config.js?v=0.1.0"></script>
+  <script src="./app.js?v=0.1.0" defer></script>
 </body>
 </html>

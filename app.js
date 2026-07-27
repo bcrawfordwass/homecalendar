@@ -2,6 +2,9 @@
   'use strict';
 
   const STORAGE_KEY = 'family-hub-lenovo-v1';
+  const APP = window.APP_CONFIG || { name: 'Family Hub', version: '0.1.0', buildDate: '2026-07-27', storage: 'Local storage' };
+  let serviceWorkerRegistration = null;
+  let refreshingForUpdate = false;
   const DEFAULT_PEOPLE = [
     { id: 'ben', name: 'Ben', colour: '#ff8a65', chip: '#ffe6dc' },
     { id: 'millie', name: 'Millie', colour: '#7e9cff', chip: '#e5eaff' },
@@ -61,10 +64,15 @@
   const installButton = document.getElementById('installButton');
   const modalTitle = document.getElementById('modalTitle');
   const saveEventButton = document.getElementById('saveEventButton');
+  const updateBanner = document.getElementById('updateBanner');
+  const updateNowButton = document.getElementById('updateNowButton');
+  const appVersion = document.getElementById('appVersion');
 
   initialise();
 
   function initialise() {
+    document.title = `${APP.name} v${APP.version}`;
+    if (appVersion) appVersion.textContent = `v${APP.version}`;
     refreshPersonOptions();
     mainNav.addEventListener('click', onNavigation);
     viewRoot.addEventListener('click', onViewClick);
@@ -96,9 +104,8 @@
       showToast('Family Hub installed');
     });
 
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-      navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-    }
+    updateNowButton?.addEventListener('click', applyAvailableUpdate);
+    setupServiceWorkerUpdates();
 
     updateDateAndClock();
     window.setInterval(updateDateAndClock, 30_000);
@@ -125,12 +132,13 @@
     if (currentView === 'meals') renderMeals();
     if (currentView === 'shopping') renderShopping();
     if (currentView === 'people') renderPeople();
+    if (currentView === 'settings') renderSettings();
   }
 
   function updateViewTitle() {
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    const titles = { today: greeting, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People' };
+    const titles = { today: greeting, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People', settings: 'Settings' };
     viewTitle.textContent = titles[currentView] || 'Family Hub';
   }
 
@@ -428,6 +436,48 @@
     saveAndRender(`${person.name} removed`);
   }
 
+  function renderSettings() {
+    const counts = {
+      people: state.people.length,
+      events: state.events.length,
+      chores: state.chores.length,
+      shopping: state.shopping.length
+    };
+    viewRoot.innerHTML = `
+      <div class="settings-layout">
+        <section class="card settings-card">
+          <div class="card-heading">
+            <div>
+              <div class="card-title">About Family Hub</div>
+              <div class="card-subtitle">App details and update controls.</div>
+            </div>
+          </div>
+          <dl class="settings-list">
+            <div><dt>Version</dt><dd>v${escapeHTML(APP.version)}</dd></div>
+            <div><dt>Built</dt><dd>${escapeHTML(formatBuildDate(APP.buildDate))}</dd></div>
+            <div><dt>Data storage</dt><dd>${escapeHTML(APP.storage || 'Local storage')}</dd></div>
+            <div><dt>Update status</dt><dd id="settingsUpdateStatus">Checking…</dd></div>
+          </dl>
+          <div class="settings-actions">
+            <button class="primary-button" data-action="check-update" type="button">Check for updates</button>
+            <button class="secondary-button" data-action="reload-app" type="button">Reload app</button>
+          </div>
+          <p class="settings-note">Reloading or updating the app does not remove your family information. Do not clear Chrome’s site data unless you have made a backup.</p>
+        </section>
+
+        <section class="card settings-card">
+          <div class="card-title">On this tablet</div>
+          <div class="storage-stats">
+            <div><strong>${counts.people}</strong><span>People</span></div>
+            <div><strong>${counts.events}</strong><span>Events</span></div>
+            <div><strong>${counts.chores}</strong><span>Chores</span></div>
+            <div><strong>${counts.shopping}</strong><span>Shopping items</span></div>
+          </div>
+        </section>
+      </div>`;
+    checkForPublishedVersion(false);
+  }
+
   function renderShopping() {
     const completed = state.shopping.filter(item => item.done).length;
     viewRoot.innerHTML = `
@@ -474,6 +524,8 @@
     if (action === 'open-chores') setView('chores');
     if (action === 'open-meals') setView('meals');
     if (action === 'open-shopping') setView('shopping');
+    if (action === 'check-update') checkForPublishedVersion(true);
+    if (action === 'reload-app') window.location.reload();
     if (action === 'add-event') openEventModal();
     if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }
@@ -674,6 +726,93 @@
     saveState();
     render();
     if (message) showToast(message);
+  }
+
+  async function setupServiceWorkerUpdates() {
+    if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
+    try {
+      serviceWorkerRegistration = await navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' });
+
+      if (serviceWorkerRegistration.waiting) showUpdateBanner();
+
+      serviceWorkerRegistration.addEventListener('updatefound', () => {
+        const worker = serviceWorkerRegistration.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner();
+        });
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshingForUpdate) return;
+        refreshingForUpdate = true;
+        window.location.reload();
+      });
+
+      await serviceWorkerRegistration.update();
+      await checkForPublishedVersion(false);
+      window.setInterval(() => {
+        serviceWorkerRegistration?.update().catch(() => {});
+        checkForPublishedVersion(false);
+      }, 15 * 60 * 1000);
+    } catch (error) {
+      console.warn('Update checks are unavailable', error);
+    }
+  }
+
+  function showUpdateBanner() {
+    updateBanner?.classList.remove('hidden');
+    const status = document.getElementById('settingsUpdateStatus');
+    if (status) status.textContent = 'Update ready';
+  }
+
+  function applyAvailableUpdate() {
+    const waiting = serviceWorkerRegistration?.waiting;
+    if (waiting) {
+      updateNowButton.disabled = true;
+      updateNowButton.textContent = 'Updating…';
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+      return;
+    }
+    window.location.reload();
+  }
+
+  async function checkForPublishedVersion(showFeedback = false) {
+    const status = document.getElementById('settingsUpdateStatus');
+    if (status) status.textContent = 'Checking…';
+    try {
+      const response = await fetch(`./version.json?check=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Version file unavailable');
+      const published = await response.json();
+      const hasNewerVersion = compareVersions(published.version, APP.version) > 0;
+      if (status) status.textContent = hasNewerVersion ? `v${published.version} available` : `Up to date (v${APP.version})`;
+      if (hasNewerVersion) {
+        await serviceWorkerRegistration?.update();
+        showUpdateBanner();
+      } else if (showFeedback) {
+        showToast('Family Hub is up to date');
+      }
+    } catch (error) {
+      if (status) status.textContent = 'Could not check while offline';
+      if (showFeedback) showToast('Could not check for updates');
+    }
+  }
+
+  function compareVersions(left = '0', right = '0') {
+    const a = String(left).split('.').map(Number);
+    const b = String(right).split('.').map(Number);
+    const length = Math.max(a.length, b.length);
+    for (let index = 0; index < length; index += 1) {
+      const difference = (a[index] || 0) - (b[index] || 0);
+      if (difference) return difference;
+    }
+    return 0;
+  }
+
+  function formatBuildDate(value) {
+    const date = value ? new Date(`${value}T12:00:00`) : null;
+    if (!date || Number.isNaN(date.getTime())) return value || 'Unknown';
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
   }
 
   function saveState() {

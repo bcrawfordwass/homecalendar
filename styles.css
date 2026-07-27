@@ -555,3 +555,47 @@ h2 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.7px; }
   .glance-side-grid { grid-template-columns: 1fr; }
   .today-focus-card { grid-column: auto; }
 }
+
+
+/* Foundations: versioning, settings and safe updates */
+.sidebar-footer { display: grid; gap: 4px; }
+.app-version { color: rgba(255,255,255,.52); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.update-banner {
+  position: fixed;
+  z-index: 1200;
+  right: 22px;
+  bottom: 22px;
+  left: max(22px, calc(var(--sidebar-width, 190px) + 22px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 18px;
+  border: 1px solid #7ba893;
+  border-radius: 17px;
+  background: #edf8f2;
+  box-shadow: 0 18px 50px rgba(24, 47, 37, .22);
+  color: #23352d;
+}
+.update-banner > div { display: grid; gap: 3px; }
+.update-banner span { color: #58675f; font-size: 13px; }
+.update-banner.hidden { display: none; }
+.settings-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); gap: 20px; }
+.settings-card { align-self: start; }
+.settings-list { margin: 22px 0 0; }
+.settings-list > div { display: flex; justify-content: space-between; gap: 24px; padding: 15px 0; border-bottom: 1px solid var(--line); }
+.settings-list dt { color: var(--muted); }
+.settings-list dd { margin: 0; font-weight: 800; text-align: right; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.settings-note { margin: 18px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.storage-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.storage-stats div { display: grid; gap: 4px; padding: 18px; border: 1px solid var(--line); border-radius: 15px; background: #fafbf9; }
+.storage-stats strong { font-size: 32px; line-height: 1; }
+.storage-stats span { color: var(--muted); font-size: 12px; }
+@media (max-width: 900px) {
+  .settings-layout { grid-template-columns: 1fr; }
+  .update-banner { left: 18px; right: 18px; bottom: 18px; }
+}
+@media (max-width: 620px) {
+  .update-banner { align-items: stretch; flex-direction: column; }
+}
