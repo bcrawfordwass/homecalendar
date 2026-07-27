@@ -78,6 +78,8 @@
   let googleAutoSyncTimer = null;
   let calendarBridgeSyncTimer = null;
   let calendarBridgeSyncInProgress = false;
+  let calendarBridgeLastError = '';
+  let calendarBridgeLastAttemptAt = null;
   const GOOGLE_AUTO_SYNC_MS = 15 * 60 * 1000;
 
   const viewRoot = document.getElementById('viewRoot');
@@ -166,12 +168,21 @@
     }
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
-      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true, onlyIfDue: true });
+      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true });
       else maybeAutoSyncGoogleCalendar();
     });
-    window.addEventListener('online', () => {
-      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true });
+    window.addEventListener('focus', () => {
+      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true, onlyIfDue: true });
     });
+    window.addEventListener('pageshow', () => {
+      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true, onlyIfDue: true });
+    });
+    window.addEventListener('online', () => {
+      calendarBridgeLastError = '';
+      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true });
+      render();
+    });
+    window.addEventListener('offline', () => render());
   }
 
   function onNavigation(event) {
@@ -345,7 +356,7 @@
     homeHeaderActions.classList.remove('hidden');
     homeHeaderActions.innerHTML = `
       ${bridgeConnected
-        ? `<div class="home-sync-control"><button class="home-header-button home-header-button-secondary" data-action="sync-google-calendar" type="button">${calendarBridgeSyncInProgress ? 'Syncing…' : '↻ Sync'}</button><span>${escapeHTML(formatRelativeBridgeSyncDate())}</span></div>`
+        ? `<div class="home-sync-control"><button class="home-header-button home-header-button-secondary" data-action="sync-google-calendar" type="button">${calendarBridgeSyncInProgress ? 'Syncing…' : '↻ Sync'}</button><span class="sync-status-text ${escapeHTML(calendarBridgeStatusClass())}">${escapeHTML(formatCalendarBridgeStatus())}</span></div>`
         : (googleConnected ? `<div class="home-sync-control"><button class="home-header-button home-header-button-secondary" data-action="sync-google-calendar" type="button">${googleTokenUsable() ? '↻ Sync' : '↻ Reconnect'}</button><span>${escapeHTML(formatRelativeGoogleSyncDate())}</span></div>` : '')}
       <button class="home-header-button home-header-button-primary" data-action="add-event" type="button">＋ Add event</button>`;
   }
@@ -1148,7 +1159,7 @@
             <button class="secondary-button" data-action="save-calendar-bridge" type="button">Save settings</button>
           </div>
           <dl class="settings-list compact-settings-list">
-            <div><dt>Status</dt><dd>${state.calendarBridge?.connected ? (calendarBridgeSyncInProgress ? 'Syncing now' : 'Automatic sync active') : 'Not tested yet'}</dd></div>
+            <div><dt>Status</dt><dd>${escapeHTML(formatCalendarBridgeStatus())}</dd></div>
             <div><dt>Last calendar sync</dt><dd>${escapeHTML(formatCalendarBridgeSyncDate())}</dd></div>
             <div><dt>Last connection test</dt><dd>${escapeHTML(formatCalendarBridgeTestDate())}</dd></div>
           </dl>
@@ -1873,10 +1884,11 @@ Check the URL, private secret and Apps Script deployment access.`);
   function startCalendarBridgeAutoSync() {
     if (calendarBridgeSyncTimer) window.clearInterval(calendarBridgeSyncTimer);
     if (!calendarBridgeReady()) return;
-    const minutes = Math.max(1, Number(state.calendarBridge.intervalMinutes || 5));
+    // A short heartbeat is more reliable on Android than a single long timer.
+    // It only makes a network request when the chosen sync interval is actually due.
     calendarBridgeSyncTimer = window.setInterval(() => {
-      if (!document.hidden) syncCalendarBridge({ silent: true, onlyIfDue: true });
-    }, minutes * 60 * 1000);
+      if (!document.hidden && navigator.onLine) syncCalendarBridge({ silent: true, onlyIfDue: true });
+    }, 15 * 1000);
   }
 
   async function calendarBridgeRequest(action, payload = null) {
@@ -1901,10 +1913,13 @@ Check the URL, private secret and Apps Script deployment access.`);
 
   async function syncCalendarBridge(options = {}) {
     if (!calendarBridgeReady() || calendarBridgeSyncInProgress || document.hidden) return;
+    if (!navigator.onLine) { calendarBridgeLastError = 'Offline'; render(); return; }
     const intervalMs = Math.max(1, Number(state.calendarBridge.intervalMinutes || 5)) * 60 * 1000;
     const lastSync = new Date(state.calendarBridge.lastSyncAt || 0).getTime();
     if (options.onlyIfDue && lastSync && Date.now() - lastSync < intervalMs) return;
     calendarBridgeSyncInProgress = true;
+    calendarBridgeLastAttemptAt = new Date().toISOString();
+    calendarBridgeLastError = '';
     if (!options.silent) showToast('Syncing Google Calendar…');
     render();
     try {
@@ -1923,13 +1938,15 @@ Check the URL, private secret and Apps Script deployment access.`);
       })));
       const now = new Date().toISOString();
       state.calendarBridge = { ...normaliseCalendarBridgeState(state.calendarBridge), connected: true, lastSyncAt: now };
+      calendarBridgeLastError = '';
       state.googleCalendar = { ...normaliseGoogleCalendarState(state.googleCalendar), lastSyncAt: now, syncedCount: importedEvents.length };
       saveState();
       render();
       if (!options.silent) showToast(`Synced ${importedEvents.length} calendar ${importedEvents.length === 1 ? 'event' : 'events'}`);
     } catch (error) {
       console.error('Automatic Calendar Bridge sync failed', error);
-      if (!options.silent) showToast(error.message || 'Automatic calendar sync failed');
+      calendarBridgeLastError = error.message || 'Sync failed';
+      if (!options.silent) showToast(calendarBridgeLastError);
     } finally {
       calendarBridgeSyncInProgress = false;
       render();
@@ -1963,6 +1980,21 @@ Check the URL, private secret and Apps Script deployment access.`);
   async function deleteCalendarBridgeEvent(googleEventId) {
     await calendarBridgeRequest('delete', { eventId: googleEventId });
     state.calendarBridge.lastSyncAt = new Date().toISOString();
+  }
+
+  function calendarBridgeStatusClass() {
+    if (!navigator.onLine) return 'offline';
+    if (calendarBridgeSyncInProgress) return 'syncing';
+    if (calendarBridgeLastError) return 'error';
+    return 'synced';
+  }
+
+  function formatCalendarBridgeStatus() {
+    if (!state.calendarBridge?.connected) return 'Not connected';
+    if (!navigator.onLine) return 'Offline';
+    if (calendarBridgeSyncInProgress) return 'Syncing…';
+    if (calendarBridgeLastError) return `Sync issue · ${calendarBridgeLastError}`;
+    return `✓ ${formatRelativeBridgeSyncDate()}`;
   }
 
   function formatCalendarBridgeSyncDate() {

@@ -2514,3 +2514,8 @@ body[data-day-period="evening"] .home-today-card {
 /* v0.6.1 Apps Script bridge */
 .google-client-field select { width: 100%; min-height: 48px; border: 1px solid var(--line, #ddd7cc); border-radius: 12px; padding: 0 14px; background: #fff; color: inherit; font: inherit; }
 .calendar-bridge-settings-card input[type="password"] { letter-spacing: 0.08em; }
+
+/* v0.7.4 sync status */
+.sync-status-text::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; background: #50b985; }
+.sync-status-text.syncing::before { background: #e7aa3c; }
+.sync-status-text.error::before, .sync-status-text.offline::before { background: #df6b6b; }
