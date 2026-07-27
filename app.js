@@ -76,6 +76,8 @@
   let googleSyncInProgress = false;
   let googleAccessTokenExpiresAt = 0;
   let googleAutoSyncTimer = null;
+  let calendarBridgeSyncTimer = null;
+  let calendarBridgeSyncInProgress = false;
   const GOOGLE_AUTO_SYNC_MS = 15 * 60 * 1000;
 
   const viewRoot = document.getElementById('viewRoot');
@@ -156,9 +158,19 @@
     window.setInterval(updateDateAndClock, 30_000);
     render();
     if (hasWeatherLocation()) refreshWeather(false);
-    startGoogleAutoSync();
+    if (state.calendarBridge?.connected) {
+      startCalendarBridgeAutoSync();
+      syncCalendarBridge({ silent: true });
+    } else {
+      startGoogleAutoSync();
+    }
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) maybeAutoSyncGoogleCalendar();
+      if (document.hidden) return;
+      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true, onlyIfDue: true });
+      else maybeAutoSyncGoogleCalendar();
+    });
+    window.addEventListener('online', () => {
+      if (state.calendarBridge?.connected) syncCalendarBridge({ silent: true });
     });
   }
 
@@ -328,10 +340,13 @@
 
   function renderHomeHeaderActions() {
     if (!homeHeaderActions) return;
+    const bridgeConnected = Boolean(state.calendarBridge?.connected);
     const googleConnected = Boolean(state.googleCalendar?.lastSyncAt);
     homeHeaderActions.classList.remove('hidden');
     homeHeaderActions.innerHTML = `
-      ${googleConnected ? `<div class="home-sync-control"><button class="home-header-button home-header-button-secondary" data-action="sync-google-calendar" type="button">${googleTokenUsable() ? '↻ Sync' : '↻ Reconnect'}</button><span>${escapeHTML(formatRelativeGoogleSyncDate())}</span></div>` : ''}
+      ${bridgeConnected
+        ? `<div class="home-sync-control"><button class="home-header-button home-header-button-secondary" data-action="sync-google-calendar" type="button">${calendarBridgeSyncInProgress ? 'Syncing…' : '↻ Sync'}</button><span>${escapeHTML(formatRelativeBridgeSyncDate())}</span></div>`
+        : (googleConnected ? `<div class="home-sync-control"><button class="home-header-button home-header-button-secondary" data-action="sync-google-calendar" type="button">${googleTokenUsable() ? '↻ Sync' : '↻ Reconnect'}</button><span>${escapeHTML(formatRelativeGoogleSyncDate())}</span></div>` : '')}
       <button class="home-header-button home-header-button-primary" data-action="add-event" type="button">＋ Add event</button>`;
   }
 
@@ -1103,7 +1118,7 @@
             <div><dt>Last sync</dt><dd>${escapeHTML(formatGoogleSyncDate())}</dd></div>
             <div><dt>Synced events</dt><dd>${Number(state.googleCalendar?.syncedCount || 0)}</dd></div>
           </dl>
-          <p class="settings-note">Family Hub can now create, edit and delete events on the primary Google Calendar. New events are synced by default while Google is connected. Google access is temporary, so you may occasionally be asked to reconnect before saving a change.</p>
+          <p class="settings-note">The Apps Script bridge is now the preferred connection and does not expire. The browser OAuth connection remains available only as a fallback.</p>
         </section>
 
         <section class="card settings-card calendar-bridge-settings-card">
@@ -1123,7 +1138,7 @@
             <input id="calendarBridgeSecretInput" type="password" autocomplete="new-password" placeholder="Enter the secret saved in Apps Script" value="${escapeHTML(state.calendarBridge?.secret || '')}">
           </label>
           <label class="google-client-field">
-            <span>Planned automatic sync interval</span>
+            <span>Automatic sync interval</span>
             <select id="calendarBridgeIntervalInput">
               ${[1, 5, 15, 30].map(minutes => `<option value="${minutes}" ${Number(state.calendarBridge?.intervalMinutes || 5) === minutes ? 'selected' : ''}>Every ${minutes} minute${minutes === 1 ? '' : 's'}</option>`).join('')}
             </select>
@@ -1133,10 +1148,11 @@
             <button class="secondary-button" data-action="save-calendar-bridge" type="button">Save settings</button>
           </div>
           <dl class="settings-list compact-settings-list">
-            <div><dt>Status</dt><dd>${state.calendarBridge?.connected ? 'Bridge is responding' : 'Not tested yet'}</dd></div>
-            <div><dt>Last test</dt><dd>${escapeHTML(formatCalendarBridgeTestDate())}</dd></div>
+            <div><dt>Status</dt><dd>${state.calendarBridge?.connected ? (calendarBridgeSyncInProgress ? 'Syncing now' : 'Automatic sync active') : 'Not tested yet'}</dd></div>
+            <div><dt>Last calendar sync</dt><dd>${escapeHTML(formatCalendarBridgeSyncDate())}</dd></div>
+            <div><dt>Last connection test</dt><dd>${escapeHTML(formatCalendarBridgeTestDate())}</dd></div>
           </dl>
-          <p class="settings-note">The private secret is stored only in IndexedDB on this tablet. It is not included in the GitHub code. This release tests and saves the connection; automatic event syncing follows in the next release.</p>
+          <p class="settings-note">The private secret stays in IndexedDB on this tablet. Family Hub now reads and writes through Apps Script automatically, including when the app opens, returns to the foreground or reaches the selected interval.</p>
         </section>
 
         <section class="card settings-card backup-card">
@@ -1206,6 +1222,7 @@
         : false
     };
     saveState();
+    if (state.calendarBridge.connected) startCalendarBridgeAutoSync();
     if (showMessage) showToast('Calendar Bridge settings saved');
     return true;
   }
@@ -1238,6 +1255,7 @@
         lastTestAt: new Date().toISOString()
       };
       saveState();
+      startCalendarBridgeAutoSync();
       render();
       showToast('Calendar Bridge connected');
     } catch (error) {
@@ -1444,7 +1462,7 @@ Check the URL, private secret and Apps Script deployment access.`);
       eventPerson.value = 'family';
       eventRepeats.checked = false;
       if (eventSyncGoogle) {
-        eventSyncGoogle.checked = Boolean(state.googleCalendar?.lastSyncAt);
+        eventSyncGoogle.checked = Boolean(state.calendarBridge?.connected || state.googleCalendar?.lastSyncAt);
         eventSyncGoogle.disabled = false;
       }
     }
@@ -1493,8 +1511,9 @@ Check the URL, private secret and Apps Script deployment access.`);
       saveEventButton.textContent = existing ? 'Saving…' : 'Adding…';
 
       if (existing?.source === 'google') {
-        await ensureGoogleWriteAccess();
-        const updatedGoogle = await updateGoogleCalendarEvent(existing.googleEventId, eventData);
+        const updatedGoogle = state.calendarBridge?.connected
+          ? await updateCalendarBridgeEvent(existing.googleEventId, eventData)
+          : (await ensureGoogleWriteAccess(), await updateGoogleCalendarEvent(existing.googleEventId, eventData));
         const converted = convertGoogleEvent(updatedGoogle);
         if (!converted) throw new Error('Google returned an invalid event');
         state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, person: eventData.person };
@@ -1505,8 +1524,9 @@ Check the URL, private secret and Apps Script deployment access.`);
 
       if (existing) {
         if (eventData.syncToGoogle && !existing.googleEventId) {
-          await ensureGoogleWriteAccess();
-          const createdGoogle = await createGoogleCalendarEvent(eventData, existing.id);
+          const createdGoogle = state.calendarBridge?.connected
+            ? await createCalendarBridgeEvent(eventData)
+            : (await ensureGoogleWriteAccess(), await createGoogleCalendarEvent(eventData, existing.id));
           const converted = convertGoogleEvent(createdGoogle);
           state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, person: eventData.person };
           closeEventModal();
@@ -1522,8 +1542,9 @@ Check the URL, private secret and Apps Script deployment access.`);
 
       const localId = uid();
       if (eventData.syncToGoogle) {
-        await ensureGoogleWriteAccess();
-        const createdGoogle = await createGoogleCalendarEvent(eventData, localId);
+        const createdGoogle = state.calendarBridge?.connected
+          ? await createCalendarBridgeEvent(eventData)
+          : (await ensureGoogleWriteAccess(), await createGoogleCalendarEvent(eventData, localId));
         const converted = convertGoogleEvent(createdGoogle);
         state.events.push({ ...converted, person: eventData.person });
         closeEventModal();
@@ -1551,8 +1572,11 @@ Check the URL, private secret and Apps Script deployment access.`);
 
     try {
       if (selectedEvent.source === 'google' && selectedEvent.googleEventId) {
-        await ensureGoogleWriteAccess();
-        await deleteGoogleCalendarEvent(selectedEvent.googleEventId);
+        if (state.calendarBridge?.connected) await deleteCalendarBridgeEvent(selectedEvent.googleEventId);
+        else {
+          await ensureGoogleWriteAccess();
+          await deleteGoogleCalendarEvent(selectedEvent.googleEventId);
+        }
       }
       state.events = state.events.filter(entry => String(entry.id) !== String(id));
       saveAndRender(selectedEvent.source === 'google' ? 'Google event deleted' : 'Event deleted');
@@ -1836,8 +1860,135 @@ Check the URL, private secret and Apps Script deployment access.`);
       secret: typeof value?.secret === 'string' ? value.secret : '',
       intervalMinutes: [1, 5, 15, 30].includes(minutes) ? minutes : 5,
       lastTestAt: value?.lastTestAt || null,
+      lastSyncAt: value?.lastSyncAt || null,
       connected: Boolean(value?.connected)
     };
+  }
+
+  function calendarBridgeReady() {
+    const bridge = normaliseCalendarBridgeState(state.calendarBridge);
+    return Boolean(bridge.connected && bridge.url && bridge.secret);
+  }
+
+  function startCalendarBridgeAutoSync() {
+    if (calendarBridgeSyncTimer) window.clearInterval(calendarBridgeSyncTimer);
+    if (!calendarBridgeReady()) return;
+    const minutes = Math.max(1, Number(state.calendarBridge.intervalMinutes || 5));
+    calendarBridgeSyncTimer = window.setInterval(() => {
+      if (!document.hidden) syncCalendarBridge({ silent: true, onlyIfDue: true });
+    }, minutes * 60 * 1000);
+  }
+
+  async function calendarBridgeRequest(action, payload = null) {
+    if (!calendarBridgeReady()) throw new Error('Connect the Automatic Calendar Bridge in Settings');
+    const bridge = normaliseCalendarBridgeState(state.calendarBridge);
+    if (payload === null) {
+      const url = new URL(bridge.url);
+      url.searchParams.set('action', action);
+      url.searchParams.set('key', bridge.secret);
+      url.searchParams.set('_', String(Date.now()));
+      const response = await fetch(url.toString(), { method: 'GET', cache: 'no-store', redirect: 'follow' });
+      if (!response.ok) throw new Error(`Calendar Bridge returned HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data?.ok) throw new Error(data?.error || 'Calendar Bridge request failed');
+      return data;
+    }
+    const response = await fetch(bridge.url, {
+      method: 'POST',
+      cache: 'no-store',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: bridge.secret, action, ...payload })
+    });
+    if (!response.ok) throw new Error(`Calendar Bridge returned HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data?.ok) throw new Error(data?.error || 'Calendar Bridge request failed');
+    return data;
+  }
+
+  async function syncCalendarBridge(options = {}) {
+    if (!calendarBridgeReady() || calendarBridgeSyncInProgress || document.hidden) return;
+    const intervalMs = Math.max(1, Number(state.calendarBridge.intervalMinutes || 5)) * 60 * 1000;
+    const lastSync = new Date(state.calendarBridge.lastSyncAt || 0).getTime();
+    if (options.onlyIfDue && lastSync && Date.now() - lastSync < intervalMs) return;
+    calendarBridgeSyncInProgress = true;
+    if (!options.silent) showToast('Syncing Google Calendar…');
+    render();
+    try {
+      const data = await calendarBridgeRequest('events');
+      const importedEvents = (Array.isArray(data.events) ? data.events : [])
+        .filter(item => item.status !== 'cancelled')
+        .map(convertGoogleEvent)
+        .filter(Boolean);
+      const existingGooglePeople = new Map(state.events
+        .filter(event => event.source === 'google' && event.googleEventId)
+        .map(event => [event.googleEventId, event.person]));
+      state.events = state.events.filter(event => event.source !== 'google');
+      state.events.push(...importedEvents.map(event => ({
+        ...event,
+        person: event.person !== 'family' ? event.person : (existingGooglePeople.get(event.googleEventId) || 'family')
+      })));
+      const now = new Date().toISOString();
+      state.calendarBridge = { ...normaliseCalendarBridgeState(state.calendarBridge), connected: true, lastSyncAt: now };
+      state.googleCalendar = { ...normaliseGoogleCalendarState(state.googleCalendar), lastSyncAt: now, syncedCount: importedEvents.length };
+      saveState();
+      render();
+      if (!options.silent) showToast(`Synced ${importedEvents.length} calendar ${importedEvents.length === 1 ? 'event' : 'events'}`);
+    } catch (error) {
+      console.error('Automatic Calendar Bridge sync failed', error);
+      if (!options.silent) showToast(error.message || 'Automatic calendar sync failed');
+    } finally {
+      calendarBridgeSyncInProgress = false;
+      render();
+    }
+  }
+
+  function bridgeEventPayload(eventData) {
+    return {
+      title: eventData.title,
+      startDate: eventData.startDate,
+      endDate: eventData.endDate || eventData.startDate,
+      startTime: eventData.startTime || '',
+      endTime: eventData.endTime || '',
+      allDay: !eventData.startTime,
+      repeats: Boolean(eventData.repeats)
+    };
+  }
+
+  async function createCalendarBridgeEvent(eventData) {
+    const data = await calendarBridgeRequest('create', { event: bridgeEventPayload(eventData) });
+    state.calendarBridge.lastSyncAt = new Date().toISOString();
+    return data.event;
+  }
+
+  async function updateCalendarBridgeEvent(googleEventId, eventData) {
+    const data = await calendarBridgeRequest('update', { event: { ...bridgeEventPayload(eventData), googleEventId } });
+    state.calendarBridge.lastSyncAt = new Date().toISOString();
+    return data.event;
+  }
+
+  async function deleteCalendarBridgeEvent(googleEventId) {
+    await calendarBridgeRequest('delete', { eventId: googleEventId });
+    state.calendarBridge.lastSyncAt = new Date().toISOString();
+  }
+
+  function formatCalendarBridgeSyncDate() {
+    const value = state.calendarBridge?.lastSyncAt;
+    if (!value) return 'Never';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
+  }
+
+  function formatRelativeBridgeSyncDate() {
+    const value = state.calendarBridge?.lastSyncAt;
+    if (!value) return 'Waiting for first sync';
+    const elapsed = Date.now() - new Date(value).getTime();
+    if (!Number.isFinite(elapsed) || elapsed < 60000) return 'Synced just now';
+    const minutes = Math.floor(elapsed / 60000);
+    if (minutes < 60) return `Synced ${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return hours < 24 ? `Synced ${hours}h ago` : `Synced ${Math.floor(hours / 24)}d ago`;
   }
 
   function formatGoogleSyncDate() {
@@ -1868,6 +2019,10 @@ Check the URL, private secret and Apps Script deployment access.`);
   }
 
   function syncOrReconnectGoogleCalendar() {
+    if (state.calendarBridge?.connected) {
+      syncCalendarBridge();
+      return;
+    }
     if (googleSyncInProgress) return;
     if (googleTokenUsable()) syncGoogleCalendar();
     else connectGoogleCalendar();
