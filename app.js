@@ -89,6 +89,7 @@
   const updateBanner = document.getElementById('updateBanner');
   const updateNowButton = document.getElementById('updateNowButton');
   const appVersion = document.getElementById('appVersion');
+  const homeHeaderActions = document.getElementById('homeHeaderActions');
 
   initialise();
 
@@ -108,6 +109,7 @@
       setNavigationExpanded(false);
     });
     viewRoot.addEventListener('click', onViewClick);
+    homeHeaderActions?.addEventListener('click', onViewClick);
     viewRoot.addEventListener('change', onViewChange);
     viewRoot.addEventListener('keydown', onViewKeydown);
     eventForm.addEventListener('submit', addEvent);
@@ -177,8 +179,14 @@
   }
 
   function render() {
+    const isHome = currentView === 'today';
+    document.body.classList.toggle('home-dashboard-active', isHome);
+    if (!isHome && homeHeaderActions) {
+      homeHeaderActions.innerHTML = '';
+      homeHeaderActions.classList.add('hidden');
+    }
     updateViewTitle();
-    if (currentView === 'today') renderToday();
+    if (isHome) renderToday();
     if (currentView === 'calendar') renderCalendar();
     if (currentView === 'chores') renderChores();
     if (currentView === 'meals') renderMeals();
@@ -190,10 +198,15 @@
   function updateViewTitle() {
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    const firstPerson = state?.people?.find(person => person.id !== 'family');
-    const homeGreeting = firstPerson?.name ? `${greeting}, ${firstPerson.name}` : greeting;
-    const titles = { today: homeGreeting, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People', settings: 'Settings' };
+    const firstName = homeGreetingName();
+    const titles = { today: `${greeting}, ${firstName} 👋`, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People', settings: 'Settings' };
     viewTitle.textContent = titles[currentView] || 'Family Hub';
+  }
+
+  function homeGreetingName() {
+    const preferred = state?.people?.find(person => String(person.id).toLowerCase() === 'ben');
+    const firstPerson = state?.people?.find(person => String(person.id).toLowerCase() !== 'family');
+    return preferred?.name || firstPerson?.name || 'there';
   }
 
   function updateDateAndClock() {
@@ -212,214 +225,263 @@
     const openChores = state.chores.filter(item => !item.done);
     const remainingShopping = state.shopping.filter(item => !item.done);
     const meal = state.meals[today] || 'Not decided';
-    const people = state.people.filter(person => person.id !== 'family').slice(0, 4);
+    const weekEventCount = week.reduce((total, date) => total + eventsForDate(date).length, 0);
+
+    renderHomeHeaderActions();
 
     viewRoot.innerHTML = `
-      <div class="home-dashboard">
-        <section class="card home-card home-today-card">
+      <div class="home-dashboard-v2">
+        <section class="home-card home-today-card">
           <div class="home-card-heading">
             <div>
               <div class="home-section-label home-blue">Today</div>
               <div class="home-card-subtitle">${escapeHTML(formatFriendlyDate(today))}</div>
             </div>
-            <button class="home-icon-button" data-action="add-event" type="button" aria-label="Add an event">＋</button>
+            <span class="home-count-pill">${todayEvents.length}</span>
           </div>
           <div class="home-today-events">
             ${todayEvents.length
               ? todayEvents.slice(0, 3).map(event => homeTodayEventHTML(event, today)).join('')
-              : '<div class="home-empty-state"><strong>A clear day</strong><span>Nothing scheduled today.</span></div>'}
-            ${todayEvents.length > 3 ? `<button class="home-more-button" data-action="open-calendar" type="button">＋${todayEvents.length - 3} more today</button>` : ''}
+              : '<div class="home-empty-state"><strong>Nothing scheduled today</strong><span>A lovely clear day ahead.</span></div>'}
           </div>
-          ${homeTimelineHTML(todayEvents, today)}
+          ${homeTimelineHTML(todayEvents, meal)}
         </section>
 
-        <section class="card home-card home-week-card">
+        <section class="home-card home-week-card">
           <div class="home-card-heading">
             <div>
               <div class="home-section-label home-purple">This week</div>
-              <div class="home-card-subtitle">${escapeHTML(formatWeekRange(week[0], week[6]))}</div>
+              <div class="home-card-subtitle">${weekEventCount} ${weekEventCount === 1 ? 'event' : 'events'} planned</div>
             </div>
-            <div class="home-heading-actions">
-              ${state.googleCalendar?.lastSyncAt ? `<button class="home-sync-button" data-action="sync-google-calendar" type="button" title="${escapeHTML(formatRelativeGoogleSyncDate())}">${googleTokenUsable() ? '↻ Sync' : '↻ Reconnect'}</button>` : ''}
-              <button class="home-text-link" data-action="open-calendar" type="button">View calendar →</button>
-            </div>
+            <button class="home-text-link" data-action="open-calendar" type="button">View calendar →</button>
           </div>
           <div class="home-week-list">
-            ${week.map(date => homeWeekRowHTML(date, today)).join('')}
+            ${homeWeekDates(week, today).map(date => homeWeekRowHTML(date)).join('')}
           </div>
         </section>
 
-        <div class="home-right-stack">
-          ${weatherCardHTML()}
-          <section class="card home-card home-dinner-card" data-action="open-meals" role="button" tabindex="0">
-            <div>
-              <div class="home-section-label home-orange">Tonight’s dinner</div>
-              <div class="home-dinner-name">${escapeHTML(meal)}</div>
-              <div class="home-card-subtitle">Tap to plan meals</div>
-            </div>
-            <div class="home-dinner-illustration" aria-hidden="true">🍽️</div>
-          </section>
-        </div>
+        ${homeWeatherCardHTML()}
 
-        <section class="card home-card home-people-card">
-          <div class="home-card-heading home-bottom-heading">
+        <section class="home-card home-dinner-card" data-action="open-meals" role="button" tabindex="0">
+          <div class="home-dinner-copy">
+            <div class="home-section-label home-orange">Tonight’s dinner</div>
+            <div class="home-dinner-name">${escapeHTML(meal)}</div>
+            <div class="home-card-subtitle">Tap to update the meal plan</div>
+          </div>
+          <div class="home-dinner-icon" aria-hidden="true">🍽️</div>
+        </section>
+
+        <section class="home-card home-people-card">
+          <div class="home-card-heading home-compact-heading">
             <div>
               <div class="home-section-label home-blue">People</div>
               <div class="home-card-subtitle">Today at a glance</div>
             </div>
-            ${state.people.filter(person => person.id !== 'family').length > 4 ? `<span class="home-count-note">＋${state.people.filter(person => person.id !== 'family').length - 4} more</span>` : ''}
+            <button class="home-text-link" data-action="open-calendar" type="button">Calendar →</button>
           </div>
           <div class="home-people-grid">
-            ${people.length ? people.map(person => homePersonCardHTML(person, today)).join('') : '<div class="home-empty-state"><strong>No people yet</strong><span>Add family members in People.</span></div>'}
+            ${homeDisplayPeople().map(person => homePersonTileHTML(person, today)).join('')}
           </div>
         </section>
 
-        <section class="card home-card home-list-card home-chores-card">
-          <div class="home-card-heading home-bottom-heading">
+        <section class="home-card home-chores-card">
+          <div class="home-card-heading home-compact-heading">
             <div class="home-section-label home-green">Chores</div>
-            <span class="home-count-badge home-count-green">${openChores.length}</span>
+            <span class="home-count-pill home-green-pill">${openChores.length}</span>
           </div>
           <div class="home-mini-list">
-            ${openChores.length ? openChores.slice(0, 3).map(item => homeChoreItemHTML(item)).join('') : '<div class="home-list-empty">All done for today ✓</div>'}
+            ${openChores.length
+              ? openChores.slice(0, 3).map(homeChoreRowHTML).join('')
+              : '<div class="home-empty-mini">Everything is done ✓</div>'}
           </div>
-          <button class="home-card-footer-link home-green" data-action="open-chores" type="button">View all chores →</button>
+          <button class="home-text-link home-card-footer-link" data-action="open-chores" type="button">View all chores →</button>
         </section>
 
-        <section class="card home-card home-list-card home-shopping-card">
-          <div class="home-card-heading home-bottom-heading">
+        <section class="home-card home-shopping-card">
+          <div class="home-card-heading home-compact-heading">
             <div class="home-section-label home-blue">Shopping</div>
-            <span class="home-count-badge home-count-blue">${remainingShopping.length}</span>
+            <span class="home-count-pill">${remainingShopping.length}</span>
           </div>
-          <div class="home-mini-list">
-            ${remainingShopping.length ? remainingShopping.slice(0, 4).map(item => homeShoppingItemHTML(item)).join('') : '<div class="home-list-empty">Nothing on the list.</div>'}
+          <div class="home-mini-list home-shopping-list">
+            ${remainingShopping.length
+              ? remainingShopping.slice(0, 4).map(homeShoppingRowHTML).join('')
+              : '<div class="home-empty-mini">Nothing on the list</div>'}
           </div>
-          <button class="home-card-footer-link home-blue" data-action="open-shopping" type="button">View full list →</button>
+          <button class="home-text-link home-card-footer-link" data-action="open-shopping" type="button">View full list →</button>
         </section>
       </div>`;
   }
 
+  function renderHomeHeaderActions() {
+    if (!homeHeaderActions) return;
+    const googleConnected = Boolean(state.googleCalendar?.lastSyncAt);
+    homeHeaderActions.classList.remove('hidden');
+    homeHeaderActions.innerHTML = `
+      ${googleConnected ? `<div class="home-sync-control"><button class="home-header-button home-header-button-secondary" data-action="sync-google-calendar" type="button">${googleTokenUsable() ? '↻ Sync' : '↻ Reconnect'}</button><span>${escapeHTML(formatRelativeGoogleSyncDate())}</span></div>` : ''}
+      <button class="home-header-button home-header-button-primary" data-action="add-event" type="button">＋ Add event</button>`;
+  }
+
   function homeTodayEventHTML(event, date) {
     const person = personFor(event.person);
-    const initial = (person?.name || 'F').trim().charAt(0).toUpperCase();
     return `
-      <article class="home-today-event">
-        <div class="home-event-avatar" style="--person-colour:${person.colour};--person-chip:${person.chip || hexToSoftColour(person.colour)}" aria-hidden="true">${escapeHTML(initial)}</div>
+      <article class="home-today-event" style="--person-colour:${person.colour};--person-chip:${person.chip}">
+        <div class="home-event-symbol" aria-hidden="true">${escapeHTML(homeEventSymbol(event.title))}</div>
         <div class="home-event-copy">
-          <div class="home-event-time" style="color:${person.colour}">${escapeHTML(eventTimeLabel(event, date))}</div>
+          <div class="home-event-time">${escapeHTML(eventTimeLabel(event, date))}</div>
           <div class="home-event-title">${escapeHTML(event.title)}</div>
           <div class="home-event-person">${escapeHTML(person.name)}${event.source === 'google' ? ' · Google' : ''}</div>
         </div>
       </article>`;
   }
 
-  function homeTimelineHTML(events, date) {
+  function homeEventSymbol(title) {
+    const value = String(title || '').toLowerCase();
+    if (value.includes('swim')) return '≈';
+    if (value.includes('office') || value.includes('work')) return '▣';
+    if (value.includes('dent')) return '✦';
+    if (value.includes('school')) return '⌂';
+    if (value.includes('birthday')) return '★';
+    if (value.includes('holiday') || value.includes('stay')) return '⌁';
+    return '●';
+  }
+
+  function homeTimelineHTML(events, meal) {
     const timedEvents = events
-      .filter(event => normaliseEvent(event).startTime)
+      .filter(event => event.startTime)
       .slice(0, 3)
-      .map(event => ({ event: normaliseEvent(event), person: personFor(event.person) }));
+      .map(event => ({
+        label: event.title,
+        time: event.startTime,
+        colour: personFor(event.person).colour
+      }));
 
-    if (!timedEvents.length) {
-      return '<div class="home-timeline home-timeline-empty"><span>All-day schedule</span><i></i><span>No timed events</span></div>';
-    }
+    const markers = [...timedEvents];
+    if (meal && meal !== 'Not decided') markers.push({ label: 'Dinner', time: '19:00', colour: '#f2a51a' });
+    if (!markers.length) return '<div class="home-timeline home-timeline-empty"><span>No timed events today</span></div>';
 
-    const startMinutes = 8 * 60;
-    const endMinutes = 21 * 60;
-    const range = endMinutes - startMinutes;
     return `
-      <div class="home-timeline" aria-label="Today’s timeline">
-        <div class="home-timeline-scale"><span>08:00</span><span>14:30</span><span>21:00</span></div>
-        <div class="home-timeline-track">
-          ${timedEvents.map(({ event, person }) => {
-            const minutes = Math.max(startMinutes, Math.min(endMinutes, timeToMinutes(event.startTime)));
-            const position = ((minutes - startMinutes) / range) * 100;
-            return `<span class="home-timeline-marker" style="left:${position}%;--marker-colour:${person.colour}" title="${escapeHTML(`${event.startTime} ${event.title}`)}"><i></i><b>${escapeHTML(event.title)}</b></span>`;
-          }).join('')}
-        </div>
+      <div class="home-timeline" aria-label="Today timeline">
+        <div class="home-timeline-track"></div>
+        ${markers.map(item => {
+          const position = homeTimelinePosition(item.time);
+          return `<div class="home-timeline-marker" style="--marker-position:${position}%;--marker-colour:${item.colour}"><span class="home-timeline-time">${escapeHTML(item.time)}</span><i></i><span class="home-timeline-label">${escapeHTML(item.label)}</span></div>`;
+        }).join('')}
       </div>`;
   }
 
-  function timeToMinutes(value) {
-    const [hours, minutes] = String(value || '00:00').split(':').map(Number);
-    return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+  function homeTimelinePosition(time) {
+    const [hour, minute] = String(time || '12:00').split(':').map(Number);
+    const minutes = (hour * 60) + (minute || 0);
+    const start = 8 * 60;
+    const end = 21 * 60;
+    return Math.max(4, Math.min(96, ((minutes - start) / (end - start)) * 100));
   }
 
-  function homeWeekRowHTML(date, today) {
-    const events = eventsForDate(date);
-    const parsed = parseISODate(date);
-    const dayName = date === today ? 'Today' : new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(parsed);
-    const dateLabel = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(parsed);
-    const meal = state.meals[date];
-    const primary = events[0];
-    const secondary = events[1];
-
-    return `
-      <article class="home-week-row ${date === today ? 'is-today' : ''}">
-        <div class="home-week-date"><strong>${escapeHTML(dayName)}</strong><span>${escapeHTML(dateLabel)}</span></div>
-        <div class="home-week-details">
-          ${primary ? homeWeekEventLineHTML(primary, date) : `<span class="home-week-empty">${meal ? 'Dinner planned' : 'Nothing planned'}</span>`}
-          ${secondary ? homeWeekEventLineHTML(secondary, date) : (meal ? `<span class="home-week-meal">🍽 ${escapeHTML(meal)}</span>` : '')}
-          ${events.length > 2 ? `<span class="home-week-more">＋${events.length - 2} more</span>` : ''}
-        </div>
-      </article>`;
+  function homeWeekDates(week, today) {
+    const upcoming = week.filter(date => date !== today && date >= today);
+    const earlier = week.filter(date => date !== today && date < today);
+    return [...upcoming, ...earlier].slice(0, 6);
   }
 
-  function homeWeekEventLineHTML(event, date) {
-    const person = personFor(event.person);
-    return `<span class="home-week-event"><i style="background:${person.colour}"></i><b>${escapeHTML(eventTimeLabel(event, date))}</b><em>${escapeHTML(event.title)}</em></span>`;
-  }
-
-  function homePersonCardHTML(person, today) {
-    const todayEvent = eventsForDate(today).find(event => event.person === person.id);
-    const initial = person.name.trim().charAt(0).toUpperCase();
-    return `
-      <article class="home-person-tile" style="--person-colour:${person.colour};--person-chip:${person.chip || hexToSoftColour(person.colour)}">
-        <div class="home-person-avatar" aria-hidden="true">${escapeHTML(initial)}</div>
-        <div class="home-person-name">${escapeHTML(person.name)}</div>
-        <div class="home-person-divider"></div>
-        ${todayEvent
-          ? `<div class="home-person-event"><strong>${escapeHTML(todayEvent.title)}</strong><span>${escapeHTML(eventTimeLabel(todayEvent, today))}</span></div>`
-          : '<div class="home-person-event home-person-free"><strong>No events</strong><span>Enjoy your day!</span></div>'}
-      </article>`;
-  }
-
-  function homeChoreItemHTML(item) {
-    const person = personFor(item.person);
-    return `
-      <button class="home-mini-item home-chore-item" data-action="toggle-chore" data-id="${escapeHTML(String(item.id))}" type="button">
-        <span class="home-checkbox" aria-hidden="true"></span>
-        <span class="home-mini-item-copy"><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(person.name)}</small></span>
-      </button>`;
-  }
-
-  function homeShoppingItemHTML(item) {
-    return `
-      <button class="home-mini-item home-shopping-item" data-action="toggle-shopping" data-id="${escapeHTML(String(item.id))}" type="button">
-        <span class="home-shopping-dot" aria-hidden="true"></span>
-        <span class="home-mini-item-copy"><strong>${escapeHTML(item.title)}</strong></span>
-      </button>`;
-  }
-
-  function weekDaySummaryHTML(date, today) {
+  function homeWeekRowHTML(date) {
     const events = eventsForDate(date);
     const parsed = parseISODate(date);
     const dayName = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(parsed);
     const dateLabel = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(parsed);
     const meal = state.meals[date];
     return `
-      <article class="glance-day ${date === today ? 'is-today' : ''}">
-        <div class="glance-day-heading">
-          <span class="glance-day-name">${date === today ? 'Today' : escapeHTML(dayName)}</span>
-          <span>${escapeHTML(dateLabel)}</span>
+      <article class="home-week-row">
+        <div class="home-week-date"><strong>${escapeHTML(dayName)}</strong><span>${escapeHTML(dateLabel)}</span></div>
+        <div class="home-week-events">
+          ${events.length
+            ? events.slice(0, 2).map(event => {
+              const person = personFor(event.person);
+              return `<div class="home-week-event"><i style="background:${person.colour}"></i><span><strong>${escapeHTML(eventTimeLabel(event, date))}</strong> ${escapeHTML(event.title)}</span></div>`;
+            }).join('')
+            : '<div class="home-week-empty">Nothing planned</div>'}
+          ${events.length > 2 ? `<div class="home-week-more">＋${events.length - 2} more</div>` : ''}
+          ${!events.length && meal ? `<div class="home-week-meal">Dinner · ${escapeHTML(meal)}</div>` : ''}
         </div>
-        <div class="glance-day-events">
-          ${events.length ? events.slice(0, 3).map(event => {
-            const person = personFor(event.person);
-            return `<div class="glance-event"><i style="background:${person.colour}"></i><span><strong>${escapeHTML(eventTimeLabel(event, date))}</strong> ${escapeHTML(event.title)}</span></div>`;
-          }).join('') : '<div class="glance-free">Nothing planned</div>'}
-          ${events.length > 3 ? `<div class="glance-more">＋${events.length - 3} more</div>` : ''}
-        </div>
-        <div class="glance-meal">${meal ? `<span aria-hidden="true">◉</span> ${escapeHTML(meal)}` : '<span class="muted">Dinner not planned</span>'}</div>
       </article>`;
+  }
+
+  function homeWeatherCardHTML() {
+    const weather = normaliseWeatherState(state.weather);
+    if (!hasWeatherLocation()) {
+      return `
+        <section class="home-card home-weather-card home-weather-empty" data-action="open-weather-settings" role="button" tabindex="0">
+          <div class="home-section-label home-orange">Weather</div>
+          <div class="home-weather-empty-copy"><span aria-hidden="true">☀</span><strong>Add your location</strong><small>Set it once in Settings.</small></div>
+        </section>`;
+    }
+
+    const forecast = weather.forecast;
+    if (!forecast?.current) {
+      return `
+        <section class="home-card home-weather-card">
+          <div class="home-card-heading home-compact-heading"><div class="home-section-label home-orange">Weather</div><button class="home-icon-button" data-action="refresh-weather" type="button" aria-label="Refresh weather">↻</button></div>
+          <div class="home-weather-empty-copy"><strong>Loading the latest forecast…</strong><small>${escapeHTML(weather.locationName || 'Current location')}</small></div>
+        </section>`;
+    }
+
+    const current = forecast.current;
+    const daily = Array.isArray(forecast.daily) ? forecast.daily.slice(0, 4) : [];
+    const condition = weatherCondition(current.code, current.isDay);
+    return `
+      <section class="home-card home-weather-card">
+        <div class="home-card-heading home-compact-heading">
+          <div class="home-section-label home-orange">Weather</div>
+          <button class="home-icon-button" data-action="refresh-weather" type="button" aria-label="Refresh weather">↻</button>
+        </div>
+        <div class="home-weather-current">
+          <div class="home-weather-icon" aria-hidden="true">${condition.icon}</div>
+          <div class="home-weather-temp">${Math.round(current.temperature)}°</div>
+          <div class="home-weather-copy"><strong>${escapeHTML(weather.locationName || 'Current location')}</strong><span>${escapeHTML(condition.label)}</span><small>Feels like ${Math.round(current.apparentTemperature)}°</small></div>
+        </div>
+        <div class="home-weather-days">
+          ${daily.map(day => {
+            const dayCondition = weatherCondition(day.code, true);
+            return `<div class="home-weather-day"><strong>${escapeHTML(day.label)}</strong><span aria-hidden="true">${dayCondition.icon}</span><small>${Math.round(day.max)}° / ${Math.round(day.min)}°</small></div>`;
+          }).join('')}
+        </div>
+      </section>`;
+  }
+
+  function homeDisplayPeople() {
+    const individuals = state.people.filter(person => String(person.id).toLowerCase() !== 'family');
+    const selected = individuals.slice(0, 4);
+    if (selected.length < 4) {
+      const family = state.people.find(person => String(person.id).toLowerCase() === 'family');
+      if (family) selected.push(family);
+    }
+    return selected.slice(0, 4);
+  }
+
+  function homePersonTileHTML(person, date) {
+    const event = eventsForDate(date).find(item => item.person === person.id);
+    const initials = String(person.name || '?').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+    return `
+      <article class="home-person-tile" style="--person-colour:${person.colour};--person-chip:${person.chip}">
+        <div class="home-person-avatar">${escapeHTML(initials)}</div>
+        <div class="home-person-name">${escapeHTML(person.name)}</div>
+        <div class="home-person-divider"></div>
+        ${event
+          ? `<div class="home-person-event"><strong>${escapeHTML(event.title)}</strong><span>${escapeHTML(eventTimeLabel(event, date))}</span></div>`
+          : '<div class="home-person-event home-person-free"><strong>No events</strong><span>Enjoy your day!</span></div>'}
+      </article>`;
+  }
+
+  function homeChoreRowHTML(item) {
+    const person = personFor(item.person);
+    return `
+      <div class="home-mini-row">
+        <button class="home-mini-check" data-action="toggle-chore" data-id="${item.id}" type="button" aria-label="Complete ${escapeHTML(item.title)}">✓</button>
+        <div><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(person.name)}</span></div>
+      </div>`;
+  }
+
+  function homeShoppingRowHTML(item) {
+    return `<div class="home-mini-row home-shopping-row"><i></i><strong>${escapeHTML(item.title)}</strong></div>`;
   }
 
   function normaliseWeatherState(value) {
@@ -440,12 +502,11 @@
     const weather = normaliseWeatherState(state.weather);
     if (!hasWeatherLocation()) {
       return `
-        <section class="card home-card home-weather-card home-weather-empty" data-action="open-weather-settings" role="button" tabindex="0">
-          <div class="home-weather-empty-icon" aria-hidden="true">☀</div>
+        <section class="card weather-card weather-card-empty" data-action="open-weather-settings" role="button" tabindex="0">
+          <div class="weather-icon-large" aria-hidden="true">☀</div>
           <div>
-            <div class="home-section-label home-orange">Weather</div>
-            <div class="home-weather-empty-title">Set your location</div>
-            <div class="home-card-subtitle">Tap to choose a town or use the tablet location.</div>
+            <div class="card-title">Weather</div>
+            <div class="muted">Choose your location in Settings.</div>
           </div>
         </section>`;
     }
@@ -453,13 +514,12 @@
     const forecast = weather.forecast;
     if (!forecast?.current) {
       return `
-        <section class="card home-card home-weather-card home-weather-empty">
-          <div class="home-weather-empty-icon" aria-hidden="true">☁</div>
+        <section class="card weather-card">
           <div>
-            <div class="home-section-label home-orange">Weather</div>
-            <div class="home-weather-empty-title">Loading forecast…</div>
-            <button class="home-text-link" data-action="refresh-weather" type="button">Refresh</button>
+            <div class="card-title">Weather in ${escapeHTML(weather.locationName || 'your area')}</div>
+            <div class="muted">Loading the latest forecast…</div>
           </div>
+          <button class="secondary-button" data-action="refresh-weather" type="button">Refresh</button>
         </section>`;
     }
 
@@ -467,26 +527,23 @@
     const daily = Array.isArray(forecast.daily) ? forecast.daily.slice(0, 4) : [];
     const condition = weatherCondition(current.code, current.isDay);
     return `
-      <section class="card home-card home-weather-card">
-        <div class="home-card-heading home-weather-heading">
-          <div class="home-section-label home-orange">Weather</div>
-          <button class="home-weather-refresh" data-action="refresh-weather" type="button" aria-label="Refresh weather">↻</button>
-        </div>
-        <div class="home-weather-now">
-          <div class="home-weather-icon" aria-hidden="true">${condition.icon}</div>
-          <div class="home-weather-temperature">${Math.round(current.temperature)}°</div>
-          <div class="home-weather-copy">
-            <strong>${escapeHTML(weather.locationName || 'Current location')}</strong>
-            <span>${escapeHTML(condition.label)}</span>
-            <small>Feels like ${Math.round(current.apparentTemperature)}°</small>
+      <section class="card weather-card">
+        <div class="weather-current">
+          <div class="weather-icon-large" aria-hidden="true">${condition.icon}</div>
+          <div class="weather-current-copy">
+            <div class="weather-location">${escapeHTML(weather.locationName || 'Current location')}</div>
+            <div class="weather-temperature">${Math.round(current.temperature)}°</div>
+            <div class="weather-condition">${escapeHTML(condition.label)}</div>
+            <div class="weather-feels">Feels like ${Math.round(current.apparentTemperature)}°</div>
           </div>
         </div>
-        <div class="home-weather-forecast">
+        <div class="weather-days">
           ${daily.map(day => {
             const dayCondition = weatherCondition(day.code, true);
-            return `<div class="home-forecast-day"><strong>${escapeHTML(day.label)}</strong><span aria-hidden="true">${dayCondition.icon}</span><b>${Math.round(day.max)}° / ${Math.round(day.min)}°</b><small>${Number.isFinite(day.rainChance) ? `${Math.round(day.rainChance)}% rain` : ''}</small></div>`;
+            return `<div class="weather-day"><strong>${escapeHTML(day.label)}</strong><span class="weather-day-icon" aria-hidden="true">${dayCondition.icon}</span><span>${Math.round(day.max)}° / ${Math.round(day.min)}°</span>${Number.isFinite(day.rainChance) ? `<small>${Math.round(day.rainChance)}% rain</small>` : ''}</div>`;
           }).join('')}
         </div>
+        <button class="weather-refresh-button" data-action="refresh-weather" type="button" aria-label="Refresh weather">↻</button>
       </section>`;
   }
 
