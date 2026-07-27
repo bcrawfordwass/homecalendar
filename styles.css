@@ -1390,3 +1390,273 @@ body.nav-expanded .update-banner {
   .hero-sync-button { padding:8px 10px; font-size:12px; }
   .google-dashboard-sync span { display:none; }
 }
+
+
+/* v0.4.4: final tablet dashboard fit, larger type and useful previews */
+.dashboard-preview-list {
+  display: grid;
+  gap: 4px;
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.dashboard-preview-list li {
+  position: relative;
+  min-width: 0;
+  padding-left: 10px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-preview-list li::before {
+  content: '';
+  position: absolute;
+  top: .48em;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.dashboard-preview-more,
+.dashboard-preview-empty {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.stat-card-content { min-width: 0; }
+.stat-card-heading {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.stat-count {
+  flex: 0 0 auto;
+  color: var(--accent-dark);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+@media (orientation: landscape) and (min-width: 901px) {
+  .main-content {
+    padding: 10px 18px 10px;
+  }
+
+  .topbar {
+    min-height: 54px;
+    margin-bottom: 7px;
+  }
+
+  .topbar .eyebrow {
+    font-size: 13px;
+  }
+
+  h1 {
+    font-size: clamp(38px, 3.5vw, 47px);
+    line-height: .98;
+  }
+
+  .clock {
+    font-size: 32px;
+  }
+
+  .week-at-glance {
+    gap: 9px;
+  }
+
+  .glance-hero {
+    min-height: 76px;
+    padding: 10px 18px;
+  }
+
+  .glance-date-range {
+    font-size: clamp(30px, 2.75vw, 38px);
+    line-height: 1;
+  }
+
+  .glance-hero-copy p {
+    margin-top: 4px;
+    font-size: 13px;
+  }
+
+  .glance-hero .primary-button {
+    min-height: 45px;
+    padding-inline: 17px;
+    font-size: 15px;
+  }
+
+  .hero-sync-button {
+    padding: 8px 11px;
+  }
+
+  .glance-week-card {
+    padding: 12px 14px;
+  }
+
+  .glance-week-card .card-heading {
+    margin-bottom: 6px;
+  }
+
+  .card-title {
+    font-size: 17px;
+  }
+
+  .card-subtitle {
+    font-size: 12px;
+  }
+
+  .glance-days {
+    gap: 4px;
+  }
+
+  .glance-day {
+    grid-template-columns: 76px minmax(0, 1fr) minmax(120px, .52fr);
+    padding: 5px 10px;
+  }
+
+  .glance-day-name {
+    font-size: 16px;
+  }
+
+  .glance-day-heading,
+  .glance-event,
+  .glance-free,
+  .glance-more,
+  .glance-meal {
+    font-size: 13px;
+    line-height: 1.18;
+  }
+
+  .glance-side-grid {
+    grid-template-rows: minmax(84px, .72fr) minmax(98px, .82fr) minmax(128px, 1.05fr);
+    gap: 7px;
+  }
+
+  .today-focus-card {
+    padding: 11px 14px;
+  }
+
+  .today-focus-card .card-heading {
+    margin-bottom: 5px;
+  }
+
+  .today-event-list,
+  .compact-empty {
+    font-size: 13px;
+  }
+
+  .weather-card {
+    grid-template-columns: minmax(135px, .68fr) minmax(0, 1.7fr);
+    gap: 8px;
+    padding: 9px 12px;
+  }
+
+  .weather-current {
+    gap: 7px;
+  }
+
+  .weather-icon-large {
+    font-size: 34px;
+  }
+
+  .weather-temperature {
+    font-size: 39px;
+    letter-spacing: -2px;
+  }
+
+  .weather-location {
+    font-size: 10px;
+  }
+
+  .weather-condition {
+    font-size: 12px;
+  }
+
+  .weather-feels {
+    font-size: 9px;
+  }
+
+  .weather-days {
+    gap: 4px;
+  }
+
+  .weather-day {
+    gap: 1px;
+    padding: 4px 2px;
+    border-radius: 9px;
+  }
+
+  .weather-day strong,
+  .weather-day span {
+    font-size: 9px;
+  }
+
+  .weather-day-icon {
+    font-size: 15px !important;
+  }
+
+  .weather-day small {
+    font-size: 7px;
+  }
+
+  .weather-refresh-button {
+    top: 5px;
+    right: 5px;
+    width: 25px;
+    height: 25px;
+    font-size: 15px;
+  }
+
+  .glance-stat-card {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px 9px;
+  }
+
+  .glance-stat-card .stat-icon {
+    position: static;
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .glance-stat-card .card-title {
+    font-size: 14px;
+    line-height: 1.08;
+  }
+
+  .glance-stat-card .compact-meal {
+    margin-top: 7px;
+    font-size: clamp(18px, 1.55vw, 22px);
+    line-height: 1.08;
+  }
+
+  .meal-highlight .stat-card-content,
+  .meal-highlight > div:last-child {
+    align-self: center;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 901px) and (max-height: 760px) {
+  .main-content { padding-block: 7px; }
+  .topbar { min-height: 49px; margin-bottom: 5px; }
+  h1 { font-size: 35px; }
+  .clock { font-size: 29px; }
+  .glance-hero { min-height: 69px; padding-block: 8px; }
+  .glance-date-range { font-size: 30px; }
+  .glance-week-card { padding-block: 10px; }
+  .glance-side-grid { grid-template-rows: minmax(72px, .65fr) minmax(88px, .75fr) minmax(118px, 1fr); gap: 6px; }
+  .glance-day { padding-block: 3px; }
+  .dashboard-preview-list { gap: 2px; margin-top: 5px; }
+  .dashboard-preview-list li { font-size: 11px; }
+}
