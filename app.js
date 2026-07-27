@@ -64,6 +64,9 @@
   let googleTokenClient = null;
   let googleAccessToken = null;
   let googleSyncInProgress = false;
+  let googleAccessTokenExpiresAt = 0;
+  let googleAutoSyncTimer = null;
+  const GOOGLE_AUTO_SYNC_MS = 15 * 60 * 1000;
 
   const viewRoot = document.getElementById('viewRoot');
   const viewTitle = document.getElementById('viewTitle');
@@ -140,6 +143,10 @@
     window.setInterval(updateDateAndClock, 30_000);
     render();
     if (hasWeatherLocation()) refreshWeather(false);
+    startGoogleAutoSync();
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) maybeAutoSyncGoogleCalendar();
+    });
   }
 
   function onNavigation(event) {
@@ -213,7 +220,10 @@
             <div class="glance-date-range">${escapeHTML(formatWeekRange(week[0], week[6]))}</div>
             <p>${weekEventCount ? `${weekEventCount} ${weekEventCount === 1 ? 'event' : 'events'} planned this week.` : 'A quiet week so far.'}</p>
           </div>
-          <button class="primary-button" data-action="add-event" type="button">＋ Add event</button>
+          <div class="glance-hero-actions">
+            ${state.googleCalendar?.lastSyncAt ? `<div class="google-dashboard-sync"><button class="hero-sync-button" data-action="sync-google-calendar" type="button">${googleTokenUsable() ? '↻ Sync Google' : '↻ Reconnect Google'}</button><span>${escapeHTML(formatRelativeGoogleSyncDate())}</span></div>` : ''}
+            <button class="primary-button" data-action="add-event" type="button">＋ Add event</button>
+          </div>
         </section>
 
         <section class="card glance-week-card">
@@ -726,7 +736,7 @@
             <input id="googleClientIdInput" autocomplete="off" placeholder="1234567890-abc.apps.googleusercontent.com" value="${escapeHTML(state.googleCalendar?.clientId || '')}">
           </label>
           <div class="settings-actions">
-            <button class="primary-button" data-action="connect-google-calendar" type="button">${state.googleCalendar?.lastSyncAt ? 'Connect and sync again' : 'Connect Google Calendar'}</button>
+            <button class="primary-button" data-action="sync-google-calendar" type="button">${state.googleCalendar?.lastSyncAt ? (googleTokenUsable() ? 'Sync now' : 'Reconnect Google Calendar') : 'Connect Google Calendar'}</button>
             ${state.googleCalendar?.lastSyncAt ? '<button class="secondary-button" data-action="remove-google-events" type="button">Remove imported events</button>' : ''}
           </div>
           <dl class="settings-list compact-settings-list">
@@ -734,7 +744,7 @@
             <div><dt>Last sync</dt><dd>${escapeHTML(formatGoogleSyncDate())}</dd></div>
             <div><dt>Imported events</dt><dd>${Number(state.googleCalendar?.syncedCount || 0)}</dd></div>
           </dl>
-          <p class="settings-note">This first integration is read-only: Google events appear in Family Hub, but editing them still happens in Google Calendar. Imported events remain available offline after a successful sync.</p>
+          <p class="settings-note">This integration is read-only. While Google access remains active, Family Hub checks for changes every 15 minutes and whenever the app returns to the foreground. If Google asks you to reconnect, tap the button above; your previously imported events remain available offline.</p>
         </section>
 
         <section class="card settings-card backup-card">
@@ -820,6 +830,7 @@
     if (action === 'use-device-location') useDeviceLocation();
     if (action === 'refresh-weather') refreshWeather(true);
     if (action === 'connect-google-calendar') connectGoogleCalendar();
+    if (action === 'sync-google-calendar') syncOrReconnectGoogleCalendar();
     if (action === 'remove-google-events') removeGoogleEvents();
     if (action === 'add-event') openEventModal();
     if (action === 'edit-event') openEventModal(id);
@@ -1257,6 +1268,40 @@
     }).format(date);
   }
 
+  function formatRelativeGoogleSyncDate() {
+    const value = state.googleCalendar?.lastSyncAt;
+    if (!value) return 'Not synced yet';
+    const elapsed = Date.now() - new Date(value).getTime();
+    if (!Number.isFinite(elapsed) || elapsed < 0) return 'Last synced recently';
+    const minutes = Math.floor(elapsed / 60000);
+    if (minutes < 1) return 'Synced just now';
+    if (minutes < 60) return `Synced ${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Synced ${hours}h ago`;
+    return `Synced ${Math.floor(hours / 24)}d ago`;
+  }
+
+  function googleTokenUsable() {
+    return Boolean(googleAccessToken && Date.now() < googleAccessTokenExpiresAt);
+  }
+
+  function syncOrReconnectGoogleCalendar() {
+    if (googleSyncInProgress) return;
+    if (googleTokenUsable()) syncGoogleCalendar();
+    else connectGoogleCalendar();
+  }
+
+  function startGoogleAutoSync() {
+    if (googleAutoSyncTimer) window.clearInterval(googleAutoSyncTimer);
+    googleAutoSyncTimer = window.setInterval(maybeAutoSyncGoogleCalendar, GOOGLE_AUTO_SYNC_MS);
+  }
+
+  function maybeAutoSyncGoogleCalendar() {
+    if (!googleTokenUsable() || googleSyncInProgress || document.hidden) return;
+    const lastSync = new Date(state.googleCalendar?.lastSyncAt || 0).getTime();
+    if (!lastSync || Date.now() - lastSync >= GOOGLE_AUTO_SYNC_MS) syncGoogleCalendar({ silent: true });
+  }
+
   async function connectGoogleCalendar() {
     if (googleSyncInProgress) return;
     const input = document.getElementById('googleClientIdInput');
@@ -1285,6 +1330,8 @@
             return;
           }
           googleAccessToken = response.access_token;
+          const lifetimeSeconds = Number(response.expires_in || 3600);
+          googleAccessTokenExpiresAt = Date.now() + Math.max(60, lifetimeSeconds - 60) * 1000;
           await syncGoogleCalendar();
         }
       });
@@ -1311,10 +1358,14 @@
     });
   }
 
-  async function syncGoogleCalendar() {
-    if (!googleAccessToken || googleSyncInProgress) return;
+  async function syncGoogleCalendar(options = {}) {
+    if (!googleTokenUsable() || googleSyncInProgress) {
+      if (!options.silent && !googleTokenUsable()) showToast('Reconnect Google Calendar to sync');
+      return;
+    }
     googleSyncInProgress = true;
-    showToast('Syncing Google Calendar…');
+    if (!options.silent) showToast('Syncing Google Calendar…');
+    render();
     try {
       const googleEvents = await fetchGoogleCalendarEvents(googleAccessToken, state.googleCalendar?.calendarId || 'primary');
       const importedEvents = googleEvents
@@ -1331,10 +1382,14 @@
       };
       saveState();
       render();
-      showToast(`${importedEvents.length} Google ${importedEvents.length === 1 ? 'event' : 'events'} imported`);
+      if (!options.silent) showToast(`${importedEvents.length} Google ${importedEvents.length === 1 ? 'event' : 'events'} imported`);
     } catch (error) {
       console.error('Could not sync Google Calendar', error);
-      showToast(error?.message === 'Google authorization expired' ? 'Reconnect Google Calendar to sync' : 'Google Calendar sync failed');
+      if (error?.message === 'Google authorization expired') {
+        googleAccessToken = null;
+        googleAccessTokenExpiresAt = 0;
+      }
+      if (!options.silent || error?.message === 'Google authorization expired') showToast(error?.message === 'Google authorization expired' ? 'Reconnect Google Calendar to sync' : 'Google Calendar sync failed');
     } finally {
       googleSyncInProgress = false;
     }
