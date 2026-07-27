@@ -72,14 +72,25 @@
         </label>
         <div class="form-row">
           <label>
-            <span>Date</span>
-            <input id="eventDate" name="date" type="date" required>
+            <span>Start date</span>
+            <input id="eventStartDate" name="startDate" type="date" required>
           </label>
           <label>
-            <span>Time</span>
-            <input id="eventTime" name="time" type="time" value="09:00" required>
+            <span>End date <small>(optional)</small></span>
+            <input id="eventEndDate" name="endDate" type="date">
           </label>
         </div>
+        <div class="form-row">
+          <label>
+            <span>Start time <small>(optional)</small></span>
+            <input id="eventStartTime" name="startTime" type="time">
+          </label>
+          <label>
+            <span>End time <small>(optional)</small></span>
+            <input id="eventEndTime" name="endTime" type="time">
+          </label>
+        </div>
+        <p class="form-help">Leave the times blank for an all-day event. Leave the end date blank for a one-day event.</p>
         <label>
           <span>Who is it for?</span>
           <select id="eventPerson" name="person"></select>

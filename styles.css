@@ -411,3 +411,7 @@ h2 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.7px; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .hero-card { grid-row: auto; }
 }
+
+/* Event date/time helpers */
+.modal label small { color: var(--muted); font-size: 0.78em; font-weight: 500; }
+.form-help { margin: -4px 0 18px; color: var(--muted); font-size: 0.88rem; line-height: 1.45; }

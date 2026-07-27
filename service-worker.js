@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-hub-v1';
+const CACHE_NAME = 'family-hub-v5-multiday';
 const ASSETS = [
   './',
   './index.html',

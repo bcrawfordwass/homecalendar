@@ -12,8 +12,8 @@
   const todayISO = toISODate(new Date());
   const seed = {
     events: [
-      { id: uid(), title: 'Swimming', date: addDaysISO(todayISO, 1), time: '16:30', person: 'millie', repeats: false },
-      { id: uid(), title: 'Dinner at Mum’s', date: addDaysISO(todayISO, 3), time: '19:00', person: 'family', repeats: false }
+      { id: uid(), title: 'Swimming', startDate: addDaysISO(todayISO, 1), endDate: addDaysISO(todayISO, 1), startTime: '16:30', endTime: '17:30', person: 'millie', repeats: false },
+      { id: uid(), title: 'Family weekend away', startDate: addDaysISO(todayISO, 3), endDate: addDaysISO(todayISO, 5), startTime: '', endTime: '', person: 'family', repeats: false }
     ],
     chores: [
       { id: uid(), title: 'Empty dishwasher', person: 'ben', done: false },
@@ -49,8 +49,10 @@
   const modalBackdrop = document.getElementById('modalBackdrop');
   const eventForm = document.getElementById('eventForm');
   const eventTitle = document.getElementById('eventTitle');
-  const eventDate = document.getElementById('eventDate');
-  const eventTime = document.getElementById('eventTime');
+  const eventStartDate = document.getElementById('eventStartDate');
+  const eventEndDate = document.getElementById('eventEndDate');
+  const eventStartTime = document.getElementById('eventStartTime');
+  const eventEndTime = document.getElementById('eventEndTime');
   const eventPerson = document.getElementById('eventPerson');
   const eventRepeats = document.getElementById('eventRepeats');
   const installButton = document.getElementById('installButton');
@@ -64,6 +66,10 @@
     viewRoot.addEventListener('change', onViewChange);
     viewRoot.addEventListener('keydown', onViewKeydown);
     eventForm.addEventListener('submit', addEvent);
+    eventStartDate.addEventListener('change', () => {
+      eventEndDate.min = eventStartDate.value;
+      if (eventEndDate.value && eventEndDate.value < eventStartDate.value) eventEndDate.value = eventStartDate.value;
+    });
     document.getElementById('closeModalButton').addEventListener('click', closeEventModal);
     document.getElementById('cancelModalButton').addEventListener('click', closeEventModal);
     modalBackdrop.addEventListener('click', event => {
@@ -148,7 +154,7 @@
             </div>
             <button class="card-link" data-action="open-calendar" type="button">Open calendar →</button>
           </div>
-          ${events.length ? events.map(eventCardHTML).join('') : '<div class="empty-message">Nothing scheduled today.</div>'}
+          ${events.length ? events.map(event => eventCardHTML(event, date)).join('') : '<div class="empty-message">Nothing scheduled today.</div>'}
         </section>
         <section class="card">
           <div class="card-heading">
@@ -206,26 +212,26 @@
     return `
       <div class="day-column ${isToday ? 'today-column' : ''}">
         <div class="day-heading"><strong>${escapeHTML(dayName)}</strong><span>${escapeHTML(dateLabel)}</span></div>
-        ${events.length ? events.map(calendarEventHTML).join('') : '<div class="muted" style="font-size:12px">No events</div>'}
+        ${events.length ? events.map(event => calendarEventHTML(event, date)).join('') : '<div class="muted" style="font-size:12px">No events</div>'}
       </div>`;
   }
 
-  function calendarEventHTML(event) {
+  function calendarEventHTML(event, date) {
     const person = personFor(event.person);
     return `
       <article class="event-card" style="--event-colour:${person.colour}">
-        <span class="event-time">${escapeHTML(event.time)}</span>
+        <span class="event-time">${escapeHTML(eventTimeLabel(event, date))}</span>
         <span class="event-title" title="${escapeHTML(event.title)}">${escapeHTML(event.title)}</span>
         <span class="person-chip" style="--chip-colour:${person.chip}">${escapeHTML(person.name)}</span>
         <div class="event-actions"><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>
       </article>`;
   }
 
-  function eventCardHTML(event) {
+  function eventCardHTML(event, date = toISODate(new Date())) {
     const person = personFor(event.person);
     return `
       <article class="event-card" style="--event-colour:${person.colour}">
-        <span class="event-time">${escapeHTML(event.time)}</span>
+        <span class="event-time">${escapeHTML(eventTimeLabel(event, date))}</span>
         <span class="event-title">${escapeHTML(event.title)}</span>
         <span class="person-chip" style="--chip-colour:${person.chip}">${escapeHTML(person.name)}</span>
       </article>`;
@@ -405,8 +411,11 @@
   function openEventModal() {
     const week = weekDates(weekOffset);
     eventForm.reset();
-    eventDate.value = currentView === 'calendar' ? week[0] : toISODate(new Date());
-    eventTime.value = '09:00';
+    eventStartDate.value = currentView === 'calendar' ? week[0] : toISODate(new Date());
+    eventEndDate.value = '';
+    eventEndDate.min = eventStartDate.value;
+    eventStartTime.value = '';
+    eventEndTime.value = '';
     eventPerson.value = 'family';
     eventRepeats.checked = false;
     modalBackdrop.classList.remove('hidden');
@@ -420,12 +429,25 @@
   function addEvent(event) {
     event.preventDefault();
     const title = eventTitle.value.trim();
-    if (!title || !eventDate.value) return;
+    if (!title || !eventStartDate.value) return;
+    const endDate = eventEndDate.value || eventStartDate.value;
+    if (endDate < eventStartDate.value) {
+      showToast('End date must be after the start date');
+      eventEndDate.focus();
+      return;
+    }
+    if (eventStartTime.value && eventEndTime.value && endDate === eventStartDate.value && eventEndTime.value < eventStartTime.value) {
+      showToast('End time must be after the start time');
+      eventEndTime.focus();
+      return;
+    }
     state.events.push({
       id: uid(),
       title,
-      date: eventDate.value,
-      time: eventTime.value || '09:00',
+      startDate: eventStartDate.value,
+      endDate,
+      startTime: eventStartTime.value,
+      endTime: eventEndTime.value,
       person: eventPerson.value,
       repeats: eventRepeats.checked
     });
@@ -436,13 +458,42 @@
   function eventsForDate(date) {
     const target = parseISODate(date);
     return state.events
-      .filter(event => {
-        if (!event.repeats) return event.date === date;
-        const original = parseISODate(event.date);
-        return original <= target && original.getDay() === target.getDay();
+      .filter(rawEvent => {
+        const event = normaliseEvent(rawEvent);
+        const start = parseISODate(event.startDate);
+        const end = parseISODate(event.endDate);
+        if (!event.repeats) return target >= start && target <= end;
+        if (target < start) return false;
+        const durationDays = Math.round((end - start) / DAY_MS);
+        const daysSinceStart = Math.round((target - start) / DAY_MS);
+        return daysSinceStart % 7 <= durationDays;
       })
+      .map(normaliseEvent)
       .slice()
-      .sort((a, b) => a.time.localeCompare(b.time));
+      .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+  }
+
+  function normaliseEvent(event) {
+    const startDate = event.startDate || event.date;
+    return {
+      ...event,
+      startDate,
+      endDate: event.endDate || startDate,
+      startTime: event.startTime ?? event.time ?? '',
+      endTime: event.endTime ?? ''
+    };
+  }
+
+  function eventTimeLabel(rawEvent, date) {
+    const event = normaliseEvent(rawEvent);
+    const isFirst = date === event.startDate;
+    const isLast = date === event.endDate;
+    const multiDay = event.startDate !== event.endDate;
+    if (!event.startTime && !event.endTime) return multiDay ? (isFirst ? 'Starts today' : isLast ? 'Ends today' : 'All day') : 'All day';
+    if (!multiDay) return event.endTime ? `${event.startTime || 'All day'}–${event.endTime}` : event.startTime;
+    if (isFirst) return event.startTime ? `From ${event.startTime}` : 'Starts today';
+    if (isLast) return event.endTime ? `Until ${event.endTime}` : 'Ends today';
+    return 'All day';
   }
 
   function personFor(id) {
@@ -470,6 +521,7 @@
       if (!stored || !Array.isArray(stored.events) || !Array.isArray(stored.chores) || !stored.meals || !Array.isArray(stored.shopping)) {
         return structuredCloneSafe(seed);
       }
+      stored.events = stored.events.map(normaliseEvent);
       return stored;
     } catch {
       return structuredCloneSafe(seed);
