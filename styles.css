@@ -2510,3 +2510,7 @@ body[data-day-period="evening"] .home-today-card {
   font-size: 11px;
   font-weight: 800;
 }
+
+/* v0.6.1 Apps Script bridge */
+.google-client-field select { width: 100%; min-height: 48px; border: 1px solid var(--line, #ddd7cc); border-radius: 12px; padding: 0 14px; background: #fff; color: inherit; font: inherit; }
+.calendar-bridge-settings-card input[type="password"] { letter-spacing: 0.08em; }

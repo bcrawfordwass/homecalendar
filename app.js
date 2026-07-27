@@ -54,6 +54,13 @@
     },
     household: {
       name: 'Allpress-Crawfords'
+    },
+    calendarBridge: {
+      url: 'https://script.google.com/macros/s/AKfycbyO_nrXPu6fQkKNz25YxRxIkYDOLFbNlpqHq91rKObY9-S8mSTvfvzFFm8Z0cEV-CMXMA/exec',
+      secret: '',
+      intervalMinutes: 5,
+      lastTestAt: null,
+      connected: false
     }
   };
 
@@ -1099,6 +1106,39 @@
           <p class="settings-note">Family Hub can now create, edit and delete events on the primary Google Calendar. New events are synced by default while Google is connected. Google access is temporary, so you may occasionally be asked to reconnect before saving a change.</p>
         </section>
 
+        <section class="card settings-card calendar-bridge-settings-card">
+          <div class="card-heading">
+            <div>
+              <div class="card-title">Automatic Calendar Bridge</div>
+              <div class="card-subtitle">Connect Family Hub to the Google Apps Script you created.</div>
+            </div>
+            <span class="connection-pill ${state.calendarBridge?.connected ? 'connected' : ''}">${state.calendarBridge?.connected ? 'Connected' : 'Not tested'}</span>
+          </div>
+          <label class="google-client-field">
+            <span>Apps Script web app URL</span>
+            <input id="calendarBridgeUrlInput" autocomplete="off" spellcheck="false" value="${escapeHTML(state.calendarBridge?.url || '')}">
+          </label>
+          <label class="google-client-field">
+            <span>Private secret</span>
+            <input id="calendarBridgeSecretInput" type="password" autocomplete="new-password" placeholder="Enter the secret saved in Apps Script" value="${escapeHTML(state.calendarBridge?.secret || '')}">
+          </label>
+          <label class="google-client-field">
+            <span>Planned automatic sync interval</span>
+            <select id="calendarBridgeIntervalInput">
+              ${[1, 5, 15, 30].map(minutes => `<option value="${minutes}" ${Number(state.calendarBridge?.intervalMinutes || 5) === minutes ? 'selected' : ''}>Every ${minutes} minute${minutes === 1 ? '' : 's'}</option>`).join('')}
+            </select>
+          </label>
+          <div class="settings-actions">
+            <button class="primary-button" data-action="test-calendar-bridge" type="button">Test connection</button>
+            <button class="secondary-button" data-action="save-calendar-bridge" type="button">Save settings</button>
+          </div>
+          <dl class="settings-list compact-settings-list">
+            <div><dt>Status</dt><dd>${state.calendarBridge?.connected ? 'Bridge is responding' : 'Not tested yet'}</dd></div>
+            <div><dt>Last test</dt><dd>${escapeHTML(formatCalendarBridgeTestDate())}</dd></div>
+          </dl>
+          <p class="settings-note">The private secret is stored only in IndexedDB on this tablet. It is not included in the GitHub code. This release tests and saves the connection; automatic event syncing follows in the next release.</p>
+        </section>
+
         <section class="card settings-card backup-card">
           <div class="card-heading">
             <div>
@@ -1139,6 +1179,96 @@
     state.household = { ...(state.household || {}), name };
     saveAndRender('Household name updated');
     updateViewTitle();
+  }
+
+  function readCalendarBridgeForm() {
+    const url = document.getElementById('calendarBridgeUrlInput')?.value.trim() || '';
+    const secret = document.getElementById('calendarBridgeSecretInput')?.value || '';
+    const intervalMinutes = Number(document.getElementById('calendarBridgeIntervalInput')?.value || 5);
+    return { url, secret, intervalMinutes };
+  }
+
+  function saveCalendarBridgeSettings(showMessage = true) {
+    const values = readCalendarBridgeForm();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(values.url)) {
+      showToast('Please enter the Apps Script web app URL ending in /exec');
+      return false;
+    }
+    if (!values.secret) {
+      showToast('Please enter the private secret');
+      return false;
+    }
+    state.calendarBridge = {
+      ...normaliseCalendarBridgeState(state.calendarBridge),
+      ...values,
+      connected: state.calendarBridge?.url === values.url && state.calendarBridge?.secret === values.secret
+        ? Boolean(state.calendarBridge?.connected)
+        : false
+    };
+    saveState();
+    if (showMessage) showToast('Calendar Bridge settings saved');
+    return true;
+  }
+
+  async function testCalendarBridgeConnection() {
+    if (!saveCalendarBridgeSettings(false)) return;
+    const button = document.querySelector('[data-action="test-calendar-bridge"]');
+    const originalText = button?.textContent || 'Test connection';
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Testing…';
+    }
+    try {
+      const bridge = normaliseCalendarBridgeState(state.calendarBridge);
+      const testUrl = new URL(bridge.url);
+      testUrl.searchParams.set('action', 'ping');
+      testUrl.searchParams.set('key', bridge.secret);
+      testUrl.searchParams.set('_', String(Date.now()));
+      const response = await fetch(testUrl.toString(), {
+        method: 'GET',
+        cache: 'no-store',
+        redirect: 'follow'
+      });
+      if (!response.ok) throw new Error(`Bridge returned HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data?.ok) throw new Error(data?.error || 'Bridge did not confirm the connection');
+      state.calendarBridge = {
+        ...bridge,
+        connected: true,
+        lastTestAt: new Date().toISOString()
+      };
+      saveState();
+      render();
+      showToast('Calendar Bridge connected');
+    } catch (error) {
+      console.error('Calendar Bridge test failed', error);
+      state.calendarBridge = {
+        ...normaliseCalendarBridgeState(state.calendarBridge),
+        connected: false
+      };
+      saveState();
+      render();
+      window.alert(`Family Hub could not read the Apps Script response.
+
+${error.message}
+
+Check the URL, private secret and Apps Script deployment access.`);
+    } finally {
+      if (button?.isConnected) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+  }
+
+  function formatCalendarBridgeTestDate() {
+    const value = state.calendarBridge?.lastTestAt;
+    if (!value) return 'Never';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }).format(date);
   }
 
   function renderShopping() {
@@ -1199,6 +1329,8 @@
     if (action === 'connect-google-calendar') connectGoogleCalendar();
     if (action === 'sync-google-calendar') syncOrReconnectGoogleCalendar();
     if (action === 'remove-google-events') removeGoogleEvents();
+    if (action === 'save-calendar-bridge') saveCalendarBridgeSettings();
+    if (action === 'test-calendar-bridge') testCalendarBridgeConnection();
     if (action === 'add-event') openEventModal();
     if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }
@@ -1639,6 +1771,7 @@
     }
     restored.weather = normaliseWeatherState(restored.weather);
     restored.googleCalendar = normaliseGoogleCalendarState(restored.googleCalendar);
+    restored.calendarBridge = normaliseCalendarBridgeState(restored.calendarBridge);
     return restored;
   }
 
@@ -1679,6 +1812,7 @@
       result.weather = normaliseWeatherState(result.weather);
       result.googleCalendar = normaliseGoogleCalendarState(result.googleCalendar);
       result.household = { name: typeof result.household?.name === 'string' && result.household.name.trim() ? result.household.name.trim() : 'Allpress-Crawfords' };
+      result.calendarBridge = normaliseCalendarBridgeState(result.calendarBridge);
       return result;
     } catch {
       return structuredCloneSafe(seed);
@@ -1691,6 +1825,18 @@
       calendarId: typeof value?.calendarId === 'string' && value.calendarId ? value.calendarId : 'primary',
       lastSyncAt: value?.lastSyncAt || null,
       syncedCount: Number.isFinite(Number(value?.syncedCount)) ? Number(value.syncedCount) : 0
+    };
+  }
+
+  function normaliseCalendarBridgeState(value) {
+    const defaultUrl = 'https://script.google.com/macros/s/AKfycbyO_nrXPu6fQkKNz25YxRxIkYDOLFbNlpqHq91rKObY9-S8mSTvfvzFFm8Z0cEV-CMXMA/exec';
+    const minutes = Number(value?.intervalMinutes);
+    return {
+      url: typeof value?.url === 'string' && value.url.trim() ? value.url.trim() : defaultUrl,
+      secret: typeof value?.secret === 'string' ? value.secret : '',
+      intervalMinutes: [1, 5, 15, 30].includes(minutes) ? minutes : 5,
+      lastTestAt: value?.lastTestAt || null,
+      connected: Boolean(value?.connected)
     };
   }
 
