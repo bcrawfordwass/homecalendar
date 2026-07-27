@@ -599,3 +599,66 @@ h2 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.7px; }
 @media (max-width: 620px) {
   .update-banner { align-items: stretch; flex-direction: column; }
 }
+
+/* v0.1.1: responsive dashboard summary cards */
+.glance-side-grid,
+.glance-stat-card,
+.glance-stat-card > div {
+  min-width: 0;
+}
+
+.glance-stat-card {
+  padding: 20px;
+  overflow: hidden;
+}
+
+.glance-stat-card .card-title,
+.glance-stat-card .muted,
+.compact-meal {
+  overflow-wrap: anywhere;
+}
+
+.glance-stat-card .card-title {
+  line-height: 1.15;
+}
+
+.compact-meal {
+  font-size: clamp(18px, 1.8vw, 25px);
+  line-height: 1.15;
+}
+
+@media (max-width: 1320px) and (min-width: 1101px) {
+  .week-at-glance {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.48fr);
+  }
+
+  .glance-side-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .today-focus-card,
+  .glance-stat-card {
+    grid-column: auto;
+  }
+
+  .glance-stat-card {
+    min-height: 112px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .glance-side-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .glance-stat-card {
+    min-height: 126px;
+  }
+}
+
+@media (max-width: 860px) {
+  .glance-side-grid {
+    grid-template-columns: 1fr;
+  }
+}
