@@ -662,3 +662,38 @@ h2 { margin: 4px 0 0; font-size: 28px; letter-spacing: -0.7px; }
     grid-template-columns: 1fr;
   }
 }
+
+/* v0.1.2: backup and restore */
+.backup-card {
+  grid-column: 1 / -1;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (max-width: 620px) {
+  .backup-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .backup-actions button {
+    width: 100%;
+  }
+}

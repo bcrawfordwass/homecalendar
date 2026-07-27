@@ -2,6 +2,8 @@
   'use strict';
 
   const STORAGE_KEY = 'family-hub-lenovo-v1';
+  const LAST_BACKUP_KEY = 'family-hub-last-backup';
+  const BACKUP_FORMAT_VERSION = 1;
   const APP = window.APP_CONFIG || { name: 'Family Hub', version: '0.1.0', buildDate: '2026-07-27', storage: 'Local storage' };
   let serviceWorkerRegistration = null;
   let refreshingForUpdate = false;
@@ -456,6 +458,7 @@
             <div><dt>Version</dt><dd>v${escapeHTML(APP.version)}</dd></div>
             <div><dt>Built</dt><dd>${escapeHTML(formatBuildDate(APP.buildDate))}</dd></div>
             <div><dt>Data storage</dt><dd>${escapeHTML(APP.storage || 'Local storage')}</dd></div>
+            <div><dt>Last backup</dt><dd>${escapeHTML(formatLastBackup())}</dd></div>
             <div><dt>Update status</dt><dd id="settingsUpdateStatus">Checking…</dd></div>
           </dl>
           <div class="settings-actions">
@@ -463,6 +466,21 @@
             <button class="secondary-button" data-action="reload-app" type="button">Reload app</button>
           </div>
           <p class="settings-note">Reloading or updating the app does not remove your family information. Do not clear Chrome’s site data unless you have made a backup.</p>
+        </section>
+
+        <section class="card settings-card backup-card">
+          <div class="card-heading">
+            <div>
+              <div class="card-title">Backup and restore</div>
+              <div class="card-subtitle">Keep a copy of your family information somewhere safe.</div>
+            </div>
+          </div>
+          <div class="backup-actions">
+            <button class="primary-button" data-action="export-backup" type="button">Download backup</button>
+            <button class="secondary-button" data-action="choose-restore" type="button">Restore from backup</button>
+            <input id="restoreBackupInput" class="visually-hidden" data-action="restore-backup" type="file" accept="application/json,.json">
+          </div>
+          <p class="settings-note">A backup contains your people, events, chores, meals and shopping list. Restoring replaces the information currently stored on this tablet.</p>
         </section>
 
         <section class="card settings-card">
@@ -526,6 +544,8 @@
     if (action === 'open-shopping') setView('shopping');
     if (action === 'check-update') checkForPublishedVersion(true);
     if (action === 'reload-app') window.location.reload();
+    if (action === 'export-backup') exportBackup();
+    if (action === 'choose-restore') document.getElementById('restoreBackupInput')?.click();
     if (action === 'add-event') openEventModal();
     if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }
@@ -547,6 +567,11 @@
 
   function onViewChange(event) {
     const target = event.target;
+    if (target.dataset.action === 'restore-backup') {
+      restoreBackupFromFile(target.files?.[0]);
+      target.value = '';
+      return;
+    }
     if (target.dataset.action === 'assign-chore') {
       const item = state.chores.find(entry => String(entry.id) === String(target.dataset.id));
       if (item) {
@@ -813,6 +838,80 @@
     const date = value ? new Date(`${value}T12:00:00`) : null;
     if (!date || Number.isNaN(date.getTime())) return value || 'Unknown';
     return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+  }
+
+  function exportBackup() {
+    const createdAt = new Date().toISOString();
+    const backup = {
+      app: APP.name,
+      appVersion: APP.version,
+      formatVersion: BACKUP_FORMAT_VERSION,
+      createdAt,
+      data: structuredCloneSafe(state)
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    const dateStamp = createdAt.slice(0, 10);
+    link.href = URL.createObjectURL(blob);
+    link.download = `family-hub-backup-${dateStamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    localStorage.setItem(LAST_BACKUP_KEY, createdAt);
+    render();
+    showToast('Backup downloaded');
+  }
+
+  async function restoreBackupFromFile(file) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const restored = parsed?.data || parsed;
+      const validation = validateBackupState(restored);
+      if (!validation.valid) throw new Error(validation.message);
+      const confirmed = window.confirm('Restore this backup? This will replace the family information currently stored on this tablet.');
+      if (!confirmed) return;
+      state = normaliseRestoredState(restored);
+      refreshPersonOptions();
+      saveState();
+      render();
+      showToast('Backup restored');
+    } catch (error) {
+      console.error('Could not restore backup', error);
+      window.alert('That file could not be restored. Please choose a Family Hub backup file.');
+    }
+  }
+
+  function validateBackupState(value) {
+    if (!value || typeof value !== 'object') return { valid: false, message: 'Missing data' };
+    if (!Array.isArray(value.people)) return { valid: false, message: 'Missing people' };
+    if (!Array.isArray(value.events)) return { valid: false, message: 'Missing events' };
+    if (!Array.isArray(value.chores)) return { valid: false, message: 'Missing chores' };
+    if (!value.meals || typeof value.meals !== 'object' || Array.isArray(value.meals)) return { valid: false, message: 'Missing meals' };
+    if (!Array.isArray(value.shopping)) return { valid: false, message: 'Missing shopping list' };
+    return { valid: true };
+  }
+
+  function normaliseRestoredState(value) {
+    const restored = structuredCloneSafe(value);
+    restored.events = restored.events.map(normaliseEvent);
+    restored.people = restored.people.length ? restored.people : structuredCloneSafe(DEFAULT_PEOPLE);
+    if (!restored.people.some(person => person.id === 'family')) {
+      restored.people.push(structuredCloneSafe(DEFAULT_PEOPLE.find(person => person.id === 'family')));
+    }
+    return restored;
+  }
+
+  function formatLastBackup() {
+    const value = localStorage.getItem(LAST_BACKUP_KEY);
+    if (!value) return 'Not backed up yet';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }).format(date);
   }
 
   function saveState() {

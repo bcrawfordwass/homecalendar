@@ -1,6 +1,6 @@
 window.APP_CONFIG = Object.freeze({
   name: 'Family Hub',
-  version: '0.1.1',
+  version: '0.1.2',
   buildDate: '2026-07-27',
   storageVersion: 1,
   storage: 'Local storage'
