@@ -1956,7 +1956,23 @@ Check the URL, private secret and Apps Script deployment access.`);
   }
 
   async function createCalendarBridgeEvent(eventData) {
-    const data = await calendarBridgeRequest('create', { event: bridgeEventPayload(eventData) });
+    if (!calendarBridgeReady()) throw new Error('Connect the Automatic Calendar Bridge in Settings');
+    const bridge = normaliseCalendarBridgeState(state.calendarBridge);
+    const url = new URL(bridge.url);
+    url.searchParams.set('action', 'create');
+    url.searchParams.set('key', bridge.secret);
+    url.searchParams.set('payload', JSON.stringify({ event: bridgeEventPayload(eventData) }));
+    url.searchParams.set('_', String(Date.now()));
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      cache: 'no-store',
+      redirect: 'follow'
+    });
+    if (!response.ok) throw new Error(`Calendar Bridge returned HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data?.ok) throw new Error(data?.error || 'Calendar Bridge could not create the event');
+
     state.calendarBridge.lastSyncAt = new Date().toISOString();
     return data.event;
   }
