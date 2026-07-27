@@ -1239,3 +1239,141 @@ body.nav-expanded .update-banner {
   .glance-days { gap: 4px; }
   .glance-day { padding-block: 5px; }
 }
+
+/* v0.4.2: tablet height tuning and safer summary-card wrapping */
+@media (orientation: landscape) and (min-width: 901px) {
+  .main-content {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .topbar {
+    min-height: 58px;
+    margin-bottom: 9px;
+  }
+
+  h1 {
+    font-size: clamp(36px, 3.35vw, 46px);
+    line-height: 1;
+  }
+
+  .clock {
+    font-size: 31px;
+  }
+
+  .week-at-glance {
+    gap: 11px;
+  }
+
+  .glance-hero {
+    min-height: 91px;
+    padding: 13px 22px;
+  }
+
+  .glance-date-range {
+    font-size: clamp(29px, 2.75vw, 38px);
+  }
+
+  .glance-hero .primary-button {
+    min-height: 48px;
+  }
+
+  .glance-week-card {
+    padding: 15px 17px;
+  }
+
+  .glance-week-card .card-heading {
+    margin-bottom: 8px;
+  }
+
+  .glance-days {
+    gap: 5px;
+  }
+
+  .glance-day {
+    padding-block: 6px;
+  }
+
+  .glance-side-grid {
+    grid-template-rows: minmax(92px, .72fr) minmax(135px, 1.02fr) minmax(102px, .76fr);
+    gap: 9px;
+  }
+
+  .today-focus-card {
+    padding: 13px 16px;
+  }
+
+  .weather-card {
+    padding: 12px 14px;
+  }
+
+  .glance-stat-card {
+    position: relative;
+    display: block;
+    min-width: 0;
+    padding: 13px 10px 11px 52px;
+    overflow: hidden;
+  }
+
+  .glance-stat-card .stat-icon {
+    position: absolute;
+    top: 14px;
+    left: 10px;
+    width: 34px;
+    height: 34px;
+    font-size: 17px;
+  }
+
+  .glance-stat-card > div:last-child {
+    min-width: 0;
+  }
+
+  .glance-stat-card .card-title {
+    max-width: 100%;
+    font-size: 13px;
+    line-height: 1.12;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .glance-stat-card .stat-number {
+    margin-top: 2px;
+    font-size: 31px;
+    line-height: .96;
+  }
+
+  .glance-stat-card .muted {
+    margin-top: 3px;
+    font-size: 10px;
+    line-height: 1.15;
+    overflow-wrap: break-word;
+  }
+
+  .glance-stat-card .compact-meal {
+    margin-top: 5px;
+    max-width: 100%;
+    font-size: clamp(16px, 1.45vw, 20px);
+    line-height: 1.06;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: none;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 901px) and (max-height: 760px) {
+  .main-content { padding-block: 8px 9px; }
+  .topbar { min-height: 52px; margin-bottom: 7px; }
+  h1 { font-size: 34px; }
+  .clock { font-size: 29px; }
+  .glance-hero { min-height: 78px; padding-block: 10px; }
+  .glance-date-range { font-size: 31px; }
+  .glance-side-grid { grid-template-rows: minmax(76px, .68fr) minmax(115px, 1fr) minmax(88px, .72fr); gap: 7px; }
+  .glance-week-card { padding-block: 12px; }
+  .glance-days { gap: 3px; }
+  .glance-day { padding-block: 4px; }
+  .weather-icon-large { font-size: 39px; }
+  .weather-temperature { font-size: 42px; }
+  .weather-day { padding-block: 5px; }
+  .glance-stat-card { padding-top: 10px; padding-bottom: 9px; }
+  .glance-stat-card .stat-icon { top: 11px; }
+}
