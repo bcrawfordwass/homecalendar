@@ -1,11 +1,11 @@
-const CACHE_NAME = 'family-hub-v0.5.2';
+const CACHE_NAME = 'family-hub-v0.5.3';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=0.5.2',
-  './config.js?v=0.5.2',
-  './storage.js?v=0.5.2',
-  './app.js?v=0.5.2',
+  './styles.css?v=0.5.3',
+  './config.js?v=0.5.3',
+  './storage.js?v=0.5.3',
+  './app.js?v=0.5.3',
   './version.json',
   './manifest.webmanifest',
   './icons/icon-192.png',

@@ -2388,3 +2388,100 @@ body.home-dashboard-active .main-content {
   font-weight: 400;
   line-height: 1;
 }
+
+/* =======================================================
+   v0.5.3 — TIME-AWARE DASHBOARD + HOUSEHOLD NAME
+   ======================================================= */
+
+.home-day-focus {
+  grid-column: 1 / 13;
+  align-self: center;
+  margin: -3px 3px -6px;
+  color: #6f7b75;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: .01em;
+  pointer-events: none;
+}
+
+.home-dashboard-v2:has(.home-day-focus) {
+  grid-template-rows: auto minmax(0, 1.18fr) minmax(0, .58fr) minmax(0, .78fr);
+}
+
+.home-dashboard-v2:has(.home-day-focus) .home-today-card,
+.home-dashboard-v2:has(.home-day-focus) .home-week-card {
+  grid-row: 2 / 4;
+}
+.home-dashboard-v2:has(.home-day-focus) .home-weather-card { grid-row: 2; }
+.home-dashboard-v2:has(.home-day-focus) .home-dinner-card { grid-row: 3; }
+.home-dashboard-v2:has(.home-day-focus) .home-people-card,
+.home-dashboard-v2:has(.home-day-focus) .home-chores-card,
+.home-dashboard-v2:has(.home-day-focus) .home-shopping-card { grid-row: 4; }
+
+/* Evening prioritises dinner, while keeping weather close by. */
+.home-dashboard-v2.home-evening .home-dinner-card {
+  grid-row: 2;
+  background: linear-gradient(130deg, #fff4d8 0%, #f4cf87 100%);
+}
+.home-dashboard-v2.home-evening .home-weather-card { grid-row: 3; }
+.home-dashboard-v2.home-evening .home-dinner-icon {
+  width: 92px;
+  height: 92px;
+  flex-basis: 92px;
+  font-size: 47px;
+}
+
+/* Morning gives the weather a little more brightness. */
+body[data-day-period="morning"] .main-content {
+  background:
+    radial-gradient(circle at 80% 0%, rgba(255, 221, 133, .22), transparent 31%),
+    linear-gradient(180deg, #f8fbf8 0%, #f3f7f4 100%);
+}
+body[data-day-period="morning"] .home-weather-card {
+  background: linear-gradient(145deg, #fffefb 0%, #fff3cf 100%);
+}
+body[data-day-period="evening"] .main-content {
+  background:
+    radial-gradient(circle at 84% 0%, rgba(143, 124, 242, .12), transparent 34%),
+    linear-gradient(180deg, #f7f8fa 0%, #f1f4f2 100%);
+}
+body[data-day-period="evening"] .home-today-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f5f2ff 100%);
+}
+
+.household-name-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.household-name-controls input {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #d6ded8;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
+@media (max-width: 1100px) {
+  .home-day-focus { display: none; }
+  .home-dashboard-v2:has(.home-day-focus) {
+    grid-template-rows: none;
+  }
+  .home-dashboard-v2:has(.home-day-focus) .home-today-card,
+  .home-dashboard-v2:has(.home-day-focus) .home-week-card,
+  .home-dashboard-v2:has(.home-day-focus) .home-weather-card,
+  .home-dashboard-v2:has(.home-day-focus) .home-dinner-card,
+  .home-dashboard-v2:has(.home-day-focus) .home-people-card,
+  .home-dashboard-v2:has(.home-day-focus) .home-chores-card,
+  .home-dashboard-v2:has(.home-day-focus) .home-shopping-card {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .household-name-controls { grid-template-columns: 1fr; }
+}

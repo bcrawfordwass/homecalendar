@@ -51,6 +51,9 @@
       calendarId: 'primary',
       lastSyncAt: null,
       syncedCount: 0
+    },
+    household: {
+      name: 'Allpress-Crawfords'
     }
   };
 
@@ -196,17 +199,18 @@
   }
 
   function updateViewTitle() {
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    const firstName = homeGreetingName();
-    const titles = { today: `${greeting}, ${firstName} 👋`, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People', settings: 'Settings' };
+    const period = getDayPeriod();
+    document.body.dataset.dayPeriod = period.id;
+    const familyName = String(state?.household?.name || 'Family').trim() || 'Family';
+    const titles = { today: `${period.greeting}, ${familyName} ${period.icon}`, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People', settings: 'Settings' };
     viewTitle.textContent = titles[currentView] || 'Family Hub';
   }
 
-  function homeGreetingName() {
-    const preferred = state?.people?.find(person => String(person.id).toLowerCase() === 'ben');
-    const firstPerson = state?.people?.find(person => String(person.id).toLowerCase() !== 'family');
-    return preferred?.name || firstPerson?.name || 'there';
+  function getDayPeriod() {
+    const hour = new Date().getHours();
+    if (hour < 11) return { id: 'morning', greeting: 'Good morning', icon: '☀️', focus: 'Here’s what’s ahead today' };
+    if (hour < 17) return { id: 'daytime', greeting: 'Good afternoon', icon: '🌤️', focus: 'Here’s what’s happening today' };
+    return { id: 'evening', greeting: 'Good evening', icon: '🌙', focus: 'Tonight and tomorrow at a glance' };
   }
 
   function updateDateAndClock() {
@@ -226,11 +230,13 @@
     const remainingShopping = state.shopping.filter(item => !item.done);
     const meal = state.meals[today] || 'Not decided';
     const weekEventCount = week.reduce((total, date) => total + eventsForDate(date).length, 0);
+    const dayPeriod = getDayPeriod();
 
     renderHomeHeaderActions();
 
     viewRoot.innerHTML = `
-      <div class="home-dashboard-v2">
+      <div class="home-dashboard-v2 home-${dayPeriod.id}" data-day-period="${dayPeriod.id}">
+        <div class="home-day-focus">${escapeHTML(dayPeriod.focus)}</div>
         <section class="home-card home-today-card">
           <div class="home-card-heading">
             <div>
@@ -1017,6 +1023,20 @@
     };
     viewRoot.innerHTML = `
       <div class="settings-layout">
+        <section class="card settings-card household-settings-card">
+          <div class="card-heading">
+            <div>
+              <div class="card-title">Household name</div>
+              <div class="card-subtitle">Used in the dashboard greeting.</div>
+            </div>
+          </div>
+          <div class="household-name-controls">
+            <input id="householdNameInput" autocomplete="off" maxlength="40" placeholder="e.g. Allpress-Crawfords" value="${escapeHTML(state.household?.name || 'Family')}">
+            <button class="primary-button" data-action="save-household-name" type="button">Save name</button>
+          </div>
+          <p class="settings-note">Examples: “Family”, “The Allpress-Crawfords” or simply your surname.</p>
+        </section>
+
         <section class="card settings-card">
           <div class="card-heading">
             <div>
@@ -1106,6 +1126,20 @@
     checkForPublishedVersion(false);
   }
 
+  function saveHouseholdName() {
+    const input = document.getElementById('householdNameInput');
+    if (!input) return;
+    const name = input.value.trim();
+    if (!name) {
+      showToast('Please enter a household name');
+      input.focus();
+      return;
+    }
+    state.household = { ...(state.household || {}), name };
+    saveAndRender('Household name updated');
+    updateViewTitle();
+  }
+
   function renderShopping() {
     const completed = state.shopping.filter(item => item.done).length;
     viewRoot.innerHTML = `
@@ -1155,6 +1189,7 @@
     if (action === 'open-weather-settings') setView('settings');
     if (action === 'check-update') checkForPublishedVersion(true);
     if (action === 'reload-app') window.location.reload();
+    if (action === 'save-household-name') saveHouseholdName();
     if (action === 'export-backup') exportBackup();
     if (action === 'choose-restore') document.getElementById('restoreBackupInput')?.click();
     if (action === 'set-weather-location') setWeatherLocationFromInput();
@@ -1574,6 +1609,7 @@
       }
       result.weather = normaliseWeatherState(result.weather);
       result.googleCalendar = normaliseGoogleCalendarState(result.googleCalendar);
+      result.household = { name: typeof result.household?.name === 'string' && result.household.name.trim() ? result.household.name.trim() : 'Allpress-Crawfords' };
       return result;
     } catch {
       return structuredCloneSafe(seed);
