@@ -138,11 +138,17 @@
     const photo = photos[currentIndex];
     const url = URL.createObjectURL(photo.blob);
     objectUrls.push(url);
+    const previousLayer = frontLayer;
     const nextLayer = initial ? 0 : 1 - frontLayer;
     layers[nextLayer].style.backgroundImage = `url("${url}")`;
+
+    // On the first image there is no outgoing layer. The old logic added and
+    // removed is-visible from the same element, leaving the photo invisible.
     requestAnimationFrame(() => {
       layers[nextLayer].classList.add('is-visible');
-      layers[frontLayer].classList.remove('is-visible');
+      if (!initial && previousLayer !== nextLayer) {
+        layers[previousLayer].classList.remove('is-visible');
+      }
       frontLayer = nextLayer;
     });
   }

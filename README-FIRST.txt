@@ -1,22 +1,16 @@
-FAMILY HUB - FOUNDATIONS UPDATE v0.1.0
+Family Hub v0.8.1 - Ambient photo display fix
 
-Replace these files in your existing homecalendar folder:
-- index.html
-- app.js
-- styles.css
-- service-worker.js
+Based on: v0.8.0
 
-Add these two new files:
-- config.js
-- version.json
+What this fixes
+- The first Ambient Mode photo now remains visible.
+- Crossfades continue normally between later photos.
+- Existing uploaded photos remain in IndexedDB and do not need to be uploaded again.
 
-Do not remove or clear Chrome site data. Your events, meals, chores, shopping items and people remain in the existing localStorage record.
+Install
+1. Copy all files in this folder into your homecalendar repository.
+2. Choose Replace when asked.
+3. Commit with: Fix Ambient Mode photo display
+4. Push to GitHub and update the tablet to v0.8.1.
 
-FIRST TABLET REFRESH AFTER DEPLOYMENT
-Open this address once in a NORMAL Chrome tab (not Incognito):
-https://bcrawfordwass.github.io/homecalendar/?update=0.1.0
-
-The unique address bypasses the old cached index page while keeping access to the same saved data. Leave it open for several seconds, tap "Update now" if shown, then reopen the installed Family Hub icon.
-
-Suggested commit message:
-Add safe app updates and version settings
+No Apps Script update is required.
