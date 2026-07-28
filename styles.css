@@ -2445,6 +2445,25 @@ body.home-dashboard-active .main-content {
   font-size: 47px;
 }
 
+
+/* v1.1.2 — evening dashboard balance and tomorrow focus */
+.home-dashboard-v2.home-evening:has(.home-day-focus) {
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, .82fr) minmax(0, .78fr);
+}
+.home-dashboard-v2.home-evening .home-dinner-card {
+  padding-block: 18px;
+}
+.home-dashboard-v2.home-evening .home-weather-card {
+  padding-top: 13px;
+  padding-bottom: 11px;
+}
+.home-dashboard-v2.home-evening .home-weather-current {
+  margin-top: 1px;
+}
+.home-dashboard-v2.home-evening .home-weather-days {
+  padding-top: 7px;
+}
+
 /* Morning gives the weather a little more brightness. */
 body[data-day-period="morning"] .main-content {
   background:

@@ -267,6 +267,7 @@
 
   function renderToday() {
     const today = toISODate(new Date());
+    const tomorrow = addDaysISO(today, 1);
     const week = weekDates(0);
     const todayEvents = eventsForDate(today);
     const openChores = state.chores.filter(item => !item.done);
@@ -274,6 +275,13 @@
     const meal = state.meals[today] || 'Not decided';
     const weekEventCount = week.reduce((total, date) => total + eventsForDate(date).length, 0);
     const dayPeriod = getDayPeriod();
+    const isEvening = dayPeriod.id === 'evening';
+    const familyFocusDate = isEvening ? tomorrow : today;
+    const familyFocusLabel = isEvening ? 'Tomorrow at a glance' : 'Today at a glance';
+    const scheduleDates = isEvening
+      ? Array.from({ length: 6 }, (_, index) => addDaysISO(tomorrow, index))
+      : homeWeekDates(week, today);
+    const scheduleEventCount = scheduleDates.reduce((total, date) => total + eventsForDate(date).length, 0);
 
     renderHomeHeaderActions();
 
@@ -299,13 +307,13 @@
         <section class="home-card home-week-card">
           <div class="home-card-heading">
             <div>
-              <div class="home-section-label home-purple">This week</div>
-              <div class="home-card-subtitle">${weekEventCount} ${weekEventCount === 1 ? 'event' : 'events'} planned</div>
+              <div class="home-section-label home-purple">${isEvening ? 'Tomorrow & ahead' : 'This week'}</div>
+              <div class="home-card-subtitle">${isEvening ? `${eventsForDate(tomorrow).length} ${eventsForDate(tomorrow).length === 1 ? 'event' : 'events'} tomorrow` : `${weekEventCount} ${weekEventCount === 1 ? 'event' : 'events'} planned`}</div>
             </div>
             <button class="home-text-link" data-action="open-calendar" type="button">View calendar →</button>
           </div>
           <div class="home-week-list">
-            ${homeWeekDates(week, today).map(date => homeWeekRowHTML(date)).join('')}
+            ${scheduleDates.map(date => homeWeekRowHTML(date)).join('')}
           </div>
         </section>
 
@@ -324,12 +332,12 @@
           <div class="home-card-heading home-compact-heading">
             <div>
               <div class="home-section-label home-blue">People</div>
-              <div class="home-card-subtitle">Today at a glance</div>
+              <div class="home-card-subtitle">${familyFocusLabel}</div>
             </div>
             <button class="home-text-link" data-action="open-calendar" type="button">Calendar →</button>
           </div>
           <div class="home-people-grid">
-            ${homeDisplayPeople().map(person => homePersonTileHTML(person, today)).join('')}
+            ${homeDisplayPeople().map(person => homePersonTileHTML(person, familyFocusDate, isEvening)).join('')}
           </div>
         </section>
 
@@ -675,7 +683,7 @@
     return selected.slice(0, 4);
   }
 
-  function homePersonTileHTML(person, date) {
+  function homePersonTileHTML(person, date, isTomorrow = false) {
     const event = eventsForDate(date).find(item => eventIncludesPerson(item, person.id));
     const initials = String(person.name || '?').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
     return `
@@ -685,7 +693,7 @@
         <div class="home-person-divider"></div>
         ${event
           ? `<div class="home-person-event"><strong>${escapeHTML(event.title)}</strong><span>${escapeHTML(eventTimeLabel(event, date))}</span></div>`
-          : '<div class="home-person-event home-person-free"><strong>No events</strong><span>Enjoy your day!</span></div>'}
+          : `<div class="home-person-event home-person-free"><strong>No events</strong><span>${isTomorrow ? 'A clear day tomorrow' : 'Enjoy your day!'}</span></div>`}
       </article>`;
   }
 

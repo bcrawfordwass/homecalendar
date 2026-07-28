@@ -1,15 +1,12 @@
-FAMILY HUB v1.1.1 - FAMILY PAGE SCROLL FIX
+FAMILY HUB v1.1.2 - EVENING DASHBOARD POLISH
 
-WHAT THIS PATCH FIXES
-- The Family page now scrolls independently in full-screen landscape / Wall Display Mode.
-- Manage family members and the add-person form remain reachable when schedules are long.
-- Extra bottom spacing keeps the final controls clear of Android gesture areas.
-- Dashboard and other page layouts are unchanged.
+WHAT CHANGED
+- Rebalanced the evening dinner and weather cards so the four-day forecast fits.
+- Evening schedule now starts with tomorrow and looks ahead from there.
+- Family cards switch to tomorrow's events after 17:00.
+- Updated evening labels and empty states.
 
 INSTALL
-1. Copy every file in this folder into your homecalendar project folder.
-2. Choose Replace when prompted.
-3. Commit and push through GitHub Desktop.
-4. Reload Family Hub / Fully Kiosk after GitHub Pages updates.
+Copy all files in this folder into your homecalendar repository, replacing existing files, then commit and push.
 
-No Apps Script changes are required. Existing data and uploaded photos are unchanged.
+No Apps Script changes are required. Existing data, settings and photos are preserved.
