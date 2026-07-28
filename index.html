@@ -8,9 +8,9 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=1.0.0">
-  <link rel="stylesheet" href="./ambient.css?v=1.0.0">
-  <link rel="stylesheet" href="./wall-display.css?v=1.0.0">
+  <link rel="stylesheet" href="./styles.css?v=1.1.0">
+  <link rel="stylesheet" href="./ambient.css?v=1.1.0">
+  <link rel="stylesheet" href="./wall-display.css?v=1.1.0">
   <title>Family Hub</title>
 </head>
 <body>
@@ -38,7 +38,7 @@
           <span class="nav-icon" aria-hidden="true">⌑</span><span class="nav-label">Shopping</span>
         </button>
         <button class="nav-button" data-view="people" type="button">
-          <span class="nav-icon" aria-hidden="true">☺</span><span class="nav-label">People</span>
+          <span class="nav-icon" aria-hidden="true">☺</span><span class="nav-label">Family</span>
         </button>
         <button class="nav-button" data-view="settings" type="button">
           <span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-label">Settings</span>
@@ -110,10 +110,11 @@
           </label>
         </div>
         <p class="form-help">Leave the times blank for an all-day event. Leave the end date blank for a one-day event.</p>
-        <label>
-          <span>Who is it for?</span>
-          <select id="eventPerson" name="person"></select>
-        </label>
+        <fieldset class="event-people-fieldset">
+          <legend>Who’s involved?</legend>
+          <div id="eventPerson" class="event-people-picker"></div>
+          <p class="form-help">Choose one person, several people, or Everyone.</p>
+        </fieldset>
         <label class="checkbox-label">
           <input id="eventRepeats" name="repeats" type="checkbox">
           <span>Repeat every week</span>
@@ -153,10 +154,10 @@
   </section>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="./config.js?v=1.0.0"></script>
-  <script src="./storage.js?v=1.0.0"></script>
-  <script src="./app.js?v=1.0.0" defer></script>
-  <script src="./ambient.js?v=1.0.0" defer></script>
-  <script src="./wall-display.js?v=1.0.0" defer></script>
+  <script src="./config.js?v=1.1.0"></script>
+  <script src="./storage.js?v=1.1.0"></script>
+  <script src="./app.js?v=1.1.0" defer></script>
+  <script src="./ambient.js?v=1.1.0" defer></script>
+  <script src="./wall-display.js?v=1.1.0" defer></script>
 </body>
 </html>

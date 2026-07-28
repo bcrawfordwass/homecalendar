@@ -69,6 +69,7 @@
   let storageMode = 'IndexedDB';
   let currentView = 'today';
   let weekOffset = 0;
+  let familyRange = 'today';
   let deferredInstallPrompt = null;
   let editingEventId = null;
   let googleTokenClient = null;
@@ -242,7 +243,7 @@
     const period = getDayPeriod();
     document.body.dataset.dayPeriod = period.id;
     const familyName = String(state?.household?.name || 'Family').trim() || 'Family';
-    const titles = { today: `${period.greeting}, ${familyName} ${period.icon}`, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'People', settings: 'Settings' };
+    const titles = { today: `${period.greeting}, ${familyName} ${period.icon}`, calendar: 'Calendar', chores: 'Chores', meals: 'Meals', shopping: 'Shopping', people: 'Family', settings: 'Settings' };
     viewTitle.textContent = titles[currentView] || 'Family Hub';
   }
 
@@ -371,14 +372,14 @@
   }
 
   function homeTodayEventHTML(event, date) {
-    const person = personFor(event.person);
+    const person = primaryPersonForEvent(event);
     return `
       <article class="home-today-event" style="--person-colour:${person.colour};--person-chip:${person.chip}">
         <div class="home-event-symbol" aria-hidden="true">${escapeHTML(homeEventSymbol(event.title))}</div>
         <div class="home-event-copy">
           <div class="home-event-time">${escapeHTML(eventTimeLabel(event, date))}</div>
           <div class="home-event-title">${escapeHTML(event.title)}</div>
-          <div class="home-event-person">${escapeHTML(person.name)}${event.source === 'google' ? ' · Google' : ''}</div>
+          <div class="home-event-person">${escapeHTML(eventPeopleLabel(event))}${event.source === 'google' ? ' · Google' : ''}</div>
         </div>
       </article>`;
   }
@@ -554,7 +555,7 @@
       .map(event => ({
         label: event.title,
         time: event.startTime,
-        colour: personFor(event.person).colour,
+        colour: primaryPersonForEvent(event).colour,
         position: homeTimelinePosition(event.startTime)
       }))
       .sort((a, b) => a.position - b.position);
@@ -610,7 +611,7 @@
         <div class="home-week-events">
           ${events.length
             ? events.slice(0, 2).map(event => {
-              const person = personFor(event.person);
+              const person = primaryPersonForEvent(event);
               return `<div class="home-week-event"><i style="background:${person.colour}"></i><span><strong>${escapeHTML(eventTimeLabel(event, date))}</strong> ${escapeHTML(event.title)}</span></div>`;
             }).join('')
             : '<div class="home-week-empty">Nothing planned</div>'}
@@ -673,7 +674,7 @@
   }
 
   function homePersonTileHTML(person, date) {
-    const event = eventsForDate(date).find(item => item.person === person.id);
+    const event = eventsForDate(date).find(item => eventIncludesPerson(item, person.id));
     const initials = String(person.name || '?').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
     return `
       <article class="home-person-tile" style="--person-colour:${person.colour};--person-chip:${person.chip}">
@@ -923,23 +924,23 @@
   }
 
   function calendarEventHTML(event, date) {
-    const person = personFor(event.person);
+    const person = primaryPersonForEvent(event);
     return `
       <article class="event-card" style="--event-colour:${person.colour}">
         <span class="event-time">${escapeHTML(eventTimeLabel(event, date))}</span>
         <span class="event-title" title="${escapeHTML(event.title)}">${escapeHTML(event.title)}</span>
-        <span class="person-chip" style="--chip-colour:${person.chip}">${escapeHTML(person.name)}</span>
+        <span class="event-people-chips">${eventPeopleChipsHTML(event)}</span>
         <div class="event-actions">${event.source === 'google' ? '<span class="google-event-badge">Google</span>' : '<span class="local-event-badge">Local</span>'}<button class="tiny-button" data-action="edit-event" data-id="${event.id}" type="button">Edit</button><button class="tiny-button" data-action="delete-event" data-id="${event.id}" type="button">Delete</button></div>
       </article>`;
   }
 
   function eventCardHTML(event, date = toISODate(new Date())) {
-    const person = personFor(event.person);
+    const person = primaryPersonForEvent(event);
     return `
       <article class="event-card" style="--event-colour:${person.colour}">
         <span class="event-time">${escapeHTML(eventTimeLabel(event, date))}</span>
         <span class="event-title">${escapeHTML(event.title)}</span>
-        <span class="person-chip" style="--chip-colour:${person.chip}">${escapeHTML(person.name)}</span>
+        <span class="event-people-chips">${eventPeopleChipsHTML(event)}</span>
       </article>`;
   }
 
@@ -1005,38 +1006,101 @@
   }
 
   function renderPeople() {
+    const dates = familyRangeDates();
+    const rangeLabel = familyRange === 'today' ? 'Today' : familyRange === 'tomorrow' ? 'Tomorrow' : 'This week';
+    const displayPeople = state.people.filter(person => person.id !== 'family');
     viewRoot.innerHTML = `
-      <section class="card list-card">
-        <div class="card-heading">
-          <div>
-            <div class="card-title">Family members</div>
-            <div class="card-subtitle">Add everyone who should have their own calendar colour.</div>
+      <div class="family-page">
+        <section class="card family-schedule-card">
+          <div class="family-page-heading">
+            <div>
+              <div class="card-title">Family schedule</div>
+              <div class="card-subtitle">See what everyone has planned, organised by person rather than by day.</div>
+            </div>
+            <button class="primary-button" data-action="add-event" type="button">＋ Add event</button>
           </div>
-        </div>
-        <div class="people-grid">
-          ${state.people.map(person => `
-            <article class="person-card">
-              <div class="person-avatar" style="background:${person.colour}">${escapeHTML(person.name.slice(0, 1).toUpperCase())}</div>
-              <div class="person-card-copy">
-                <strong>${escapeHTML(person.name)}</strong>
-                <span>${person.id === 'family' ? 'Shared family events' : 'Personal calendar colour'}</span>
-              </div>
-              ${person.id === 'family' ? '' : `<button class="delete-button" data-action="delete-person" data-id="${person.id}" type="button" aria-label="Delete ${escapeHTML(person.name)}">×</button>`}
-            </article>`).join('')}
-        </div>
-        <form id="addPersonForm" class="add-person-form">
-          <label>
-            <span>Name</span>
-            <input id="newPersonName" autocomplete="off" placeholder="Add a family member" required>
-          </label>
-          <label>
-            <span>Colour</span>
-            <input id="newPersonColour" type="color" value="#8f7cf2" aria-label="Choose calendar colour">
-          </label>
-          <button class="primary-button" type="submit">＋ Add person</button>
-        </form>
-      </section>`;
+          <div class="family-range-tabs" role="tablist" aria-label="Family schedule range">
+            ${['today', 'tomorrow', 'week'].map(range => `<button class="family-range-tab ${familyRange === range ? 'active' : ''}" data-action="family-range" data-range="${range}" type="button">${range === 'today' ? 'Today' : range === 'tomorrow' ? 'Tomorrow' : 'This week'}</button>`).join('')}
+          </div>
+          <div class="family-person-columns">
+            ${displayPeople.map(person => familyPersonScheduleHTML(person, dates, rangeLabel)).join('')}
+          </div>
+          ${state.people.some(person => person.id === 'family') ? familySharedScheduleHTML(dates, rangeLabel) : ''}
+        </section>
+
+        <section class="card family-members-card">
+          <div class="card-heading">
+            <div>
+              <div class="card-title">Manage family members</div>
+              <div class="card-subtitle">People can now be assigned to the same event together.</div>
+            </div>
+          </div>
+          <div class="people-grid">
+            ${state.people.map(person => `
+              <article class="person-card">
+                <div class="person-avatar" style="background:${person.colour}">${escapeHTML(person.name.slice(0, 1).toUpperCase())}</div>
+                <div class="person-card-copy">
+                  <strong>${escapeHTML(person.name)}</strong>
+                  <span>${person.id === 'family' ? 'Shared household events' : 'Personal calendar colour'}</span>
+                </div>
+                ${person.id === 'family' ? '' : `<button class="delete-button" data-action="delete-person" data-id="${person.id}" type="button" aria-label="Delete ${escapeHTML(person.name)}">×</button>`}
+              </article>`).join('')}
+          </div>
+          <form id="addPersonForm" class="add-person-form">
+            <label><span>Name</span><input id="newPersonName" autocomplete="off" placeholder="Add a family member" required></label>
+            <label><span>Colour</span><input id="newPersonColour" type="color" value="#8f7cf2" aria-label="Choose calendar colour"></label>
+            <button class="primary-button" type="submit">＋ Add person</button>
+          </form>
+        </section>
+      </div>`;
     document.getElementById('addPersonForm')?.addEventListener('submit', addPerson);
+  }
+
+  function familyRangeDates() {
+    const today = toISODate(new Date());
+    if (familyRange === 'tomorrow') return [addDaysISO(today, 1)];
+    if (familyRange === 'week') return Array.from({ length: 7 }, (_, index) => addDaysISO(today, index));
+    return [today];
+  }
+
+  function familyPersonScheduleHTML(person, dates, rangeLabel) {
+    const entries = dates.flatMap(date => eventsForDate(date)
+      .filter(event => eventIncludesPerson(event, person.id))
+      .map(event => ({ event, date })));
+    return `
+      <article class="family-person-column" style="--person-colour:${person.colour};--person-chip:${person.chip}">
+        <div class="family-person-heading">
+          <div class="person-avatar">${escapeHTML(person.name.slice(0, 1).toUpperCase())}</div>
+          <div><strong>${escapeHTML(person.name)}</strong><span>${escapeHTML(rangeLabel)} · ${entries.length} ${entries.length === 1 ? 'event' : 'events'}</span></div>
+        </div>
+        <div class="family-person-events">
+          ${entries.length ? entries.map(({ event, date }) => familyScheduleEventHTML(event, date)).join('') : '<div class="family-no-events">Nothing planned</div>'}
+        </div>
+      </article>`;
+  }
+
+  function familySharedScheduleHTML(dates, rangeLabel) {
+    const entries = dates.flatMap(date => eventsForDate(date)
+      .filter(event => eventIncludesPerson(event, 'family'))
+      .map(event => ({ event, date })));
+    if (!entries.length) return '';
+    const family = personFor('family');
+    return `
+      <section class="family-shared-events" style="--person-colour:${family.colour};--person-chip:${family.chip}">
+        <div class="family-person-heading"><div class="person-avatar">F</div><div><strong>Everyone</strong><span>${escapeHTML(rangeLabel)} · shared household events</span></div></div>
+        <div class="family-shared-grid">${entries.map(({ event, date }) => familyScheduleEventHTML(event, date)).join('')}</div>
+      </section>`;
+  }
+
+  function familyScheduleEventHTML(event, date) {
+    const showDate = familyRange === 'week';
+    const dateLabel = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).format(parseISODate(date));
+    return `
+      <button class="family-schedule-event" data-action="edit-event" data-id="${event.id}" type="button">
+        <span class="family-event-when">${showDate ? `${escapeHTML(dateLabel)} · ` : ''}${escapeHTML(eventTimeLabel(event, date))}</span>
+        <strong>${escapeHTML(event.title)}</strong>
+        <span class="event-people-chips">${eventPeopleChipsHTML(event, true)}</span>
+      </button>`;
   }
 
   function addPerson(event) {
@@ -1063,7 +1127,11 @@
   function deletePerson(id) {
     const person = state.people.find(entry => entry.id === id);
     if (!person || id === 'family') return;
-    state.events.forEach(event => { if (event.person === id) event.person = 'family'; });
+    state.events.forEach(event => {
+      const remaining = personIdsForEvent(event).filter(personId => personId !== id);
+      event.personIds = remaining.length ? remaining : ['family'];
+      event.person = event.personIds[0];
+    });
     state.chores.forEach(chore => { if (chore.person === id) chore.person = 'family'; });
     state.people = state.people.filter(entry => entry.id !== id);
     refreshPersonOptions();
@@ -1383,6 +1451,7 @@ Check the URL, private secret and Apps Script deployment access.`);
     if (action === 'save-calendar-bridge') saveCalendarBridgeSettings();
     if (action === 'test-calendar-bridge') testCalendarBridgeConnection();
     if (action === 'add-event') openEventModal();
+    if (action === 'family-range') { familyRange = button.dataset.range || 'today'; render(); }
     if (action === 'edit-event') openEventModal(id);
     if (action === 'previous-week') { weekOffset -= 1; render(); }
     if (action === 'next-week') { weekOffset += 1; render(); }
@@ -1479,7 +1548,7 @@ Check the URL, private secret and Apps Script deployment access.`);
       eventEndDate.value = event.endDate === event.startDate ? '' : event.endDate;
       eventStartTime.value = event.startTime;
       eventEndTime.value = event.endTime;
-      eventPerson.value = event.person;
+      setEventPeopleSelection(personIdsForEvent(event));
       eventRepeats.checked = Boolean(event.repeats);
       if (eventSyncGoogle) {
         eventSyncGoogle.checked = event.source === 'google' || Boolean(event.syncToGoogle);
@@ -1492,7 +1561,7 @@ Check the URL, private secret and Apps Script deployment access.`);
       eventEndDate.value = '';
       eventStartTime.value = '';
       eventEndTime.value = '';
-      eventPerson.value = 'family';
+      setEventPeopleSelection(['family']);
       eventRepeats.checked = false;
       if (eventSyncGoogle) {
         eventSyncGoogle.checked = Boolean(state.calendarBridge?.connected || state.googleCalendar?.lastSyncAt);
@@ -1534,7 +1603,8 @@ Check the URL, private secret and Apps Script deployment access.`);
       endDate,
       startTime: eventStartTime.value,
       endTime: eventEndTime.value,
-      person: eventPerson.value,
+      personIds: selectedEventPersonIds(),
+      person: selectedEventPersonIds()[0] || 'family',
       repeats: eventRepeats.checked,
       syncToGoogle: Boolean(eventSyncGoogle?.checked)
     };
@@ -1549,7 +1619,7 @@ Check the URL, private secret and Apps Script deployment access.`);
           : (await ensureGoogleWriteAccess(), await updateGoogleCalendarEvent(existing.googleEventId, eventData));
         const converted = convertGoogleEvent(updatedGoogle);
         if (!converted) throw new Error('Google returned an invalid event');
-        state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, person: eventData.person };
+        state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, personIds: eventData.personIds, person: eventData.person };
         closeEventModal();
         saveAndRender('Google event updated');
         return;
@@ -1561,7 +1631,7 @@ Check the URL, private secret and Apps Script deployment access.`);
             ? await createCalendarBridgeEvent(eventData)
             : (await ensureGoogleWriteAccess(), await createGoogleCalendarEvent(eventData, existing.id));
           const converted = convertGoogleEvent(createdGoogle);
-          state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, person: eventData.person };
+          state.events[state.events.findIndex(entry => String(entry.id) === String(existing.id))] = { ...converted, personIds: eventData.personIds, person: eventData.person };
           closeEventModal();
           saveAndRender('Event added to Google Calendar');
           return;
@@ -1579,7 +1649,7 @@ Check the URL, private secret and Apps Script deployment access.`);
           ? await createCalendarBridgeEvent(eventData)
           : (await ensureGoogleWriteAccess(), await createGoogleCalendarEvent(eventData, localId));
         const converted = convertGoogleEvent(createdGoogle);
-        state.events.push({ ...converted, person: eventData.person });
+        state.events.push({ ...converted, personIds: eventData.personIds, person: eventData.person });
         closeEventModal();
         saveAndRender('Event added to Google Calendar');
         return;
@@ -1644,7 +1714,9 @@ Check the URL, private secret and Apps Script deployment access.`);
       startDate,
       endDate: event.endDate || startDate,
       startTime: event.startTime ?? event.time ?? '',
-      endTime: event.endTime ?? ''
+      endTime: event.endTime ?? '',
+      personIds: Array.isArray(event.personIds) && event.personIds.length ? [...new Set(event.personIds.filter(Boolean))] : [event.person || 'family'],
+      person: (Array.isArray(event.personIds) && event.personIds.length ? event.personIds[0] : event.person) || 'family'
     };
   }
 
@@ -1664,11 +1736,59 @@ Check the URL, private secret and Apps Script deployment access.`);
     return state.people.find(person => person.id === id) || state.people.find(person => person.id === 'family') || state.people[0];
   }
 
+  function personIdsForEvent(rawEvent) {
+    const ids = Array.isArray(rawEvent?.personIds) && rawEvent.personIds.length ? rawEvent.personIds : [rawEvent?.person || 'family'];
+    const valid = [...new Set(ids.filter(id => state.people.some(person => person.id === id)))];
+    return valid.length ? valid : ['family'];
+  }
+
+  function peopleForEvent(event) {
+    return personIdsForEvent(event).map(personFor);
+  }
+
+  function primaryPersonForEvent(event) {
+    return peopleForEvent(event)[0] || personFor('family');
+  }
+
+  function eventIncludesPerson(event, personId) {
+    return personIdsForEvent(event).includes(personId);
+  }
+
+  function eventPeopleLabel(event) {
+    const names = peopleForEvent(event).map(person => person.name);
+    if (names.length <= 2) return names.join(' & ');
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+  }
+
+  function eventPeopleChipsHTML(event, compact = false) {
+    const people = peopleForEvent(event);
+    const visible = compact ? people.slice(0, 3) : people;
+    const chips = visible.map(person => `<span class="person-chip ${compact ? 'compact' : ''}" style="--chip-colour:${person.chip};--person-colour:${person.colour}">${escapeHTML(compact ? person.name.slice(0, 1).toUpperCase() : person.name)}</span>`).join('');
+    return chips + (compact && people.length > 3 ? `<span class="person-chip compact">+${people.length - 3}</span>` : '');
+  }
+
   function refreshPersonOptions() {
     if (!eventPerson) return;
-    const current = eventPerson.value;
-    eventPerson.innerHTML = state.people.map(person => `<option value="${person.id}">${escapeHTML(person.name)}</option>`).join('');
-    if (state.people.some(person => person.id === current)) eventPerson.value = current;
+    const selected = selectedEventPersonIds();
+    eventPerson.innerHTML = state.people.map(person => `
+      <label class="event-person-option" style="--person-colour:${person.colour};--person-chip:${person.chip}">
+        <input type="checkbox" name="eventPeople" value="${person.id}">
+        <span class="event-person-check">✓</span>
+        <span class="event-person-avatar">${escapeHTML(person.name.slice(0, 1).toUpperCase())}</span>
+        <span>${escapeHTML(person.id === 'family' ? 'Everyone' : person.name)}</span>
+      </label>`).join('');
+    setEventPeopleSelection(selected.length ? selected : ['family']);
+  }
+
+  function selectedEventPersonIds() {
+    if (!eventPerson) return ['family'];
+    return Array.from(eventPerson.querySelectorAll('input[type="checkbox"]:checked')).map(input => input.value);
+  }
+
+  function setEventPeopleSelection(ids) {
+    if (!eventPerson) return;
+    const selected = new Set(Array.isArray(ids) && ids.length ? ids : ['family']);
+    eventPerson.querySelectorAll('input[type="checkbox"]').forEach(input => { input.checked = selected.has(input.value); });
   }
 
   function saveAndRender(message) {
@@ -1952,11 +2072,12 @@ Check the URL, private secret and Apps Script deployment access.`);
         .filter(Boolean);
       const existingGooglePeople = new Map(state.events
         .filter(event => event.source === 'google' && event.googleEventId)
-        .map(event => [event.googleEventId, event.person]));
+        .map(event => [event.googleEventId, personIdsForEvent(event)]));
       state.events = state.events.filter(event => event.source !== 'google');
       state.events.push(...importedEvents.map(event => ({
         ...event,
-        person: event.person !== 'family' ? event.person : (existingGooglePeople.get(event.googleEventId) || 'family')
+        personIds: event.person !== 'family' ? [event.person] : (existingGooglePeople.get(event.googleEventId) || ['family']),
+        person: (event.person !== 'family' ? event.person : (existingGooglePeople.get(event.googleEventId)?.[0] || 'family'))
       })));
       const now = new Date().toISOString();
       state.calendarBridge = { ...normaliseCalendarBridgeState(state.calendarBridge), connected: true, lastSyncAt: now };
@@ -2159,11 +2280,12 @@ Check the URL, private secret and Apps Script deployment access.`);
 
       const existingGooglePeople = new Map(state.events
         .filter(event => event.source === 'google' && event.googleEventId)
-        .map(event => [event.googleEventId, event.person]));
+        .map(event => [event.googleEventId, personIdsForEvent(event)]));
       state.events = state.events.filter(event => event.source !== 'google');
       state.events.push(...importedEvents.map(event => ({
         ...event,
-        person: event.person !== 'family' ? event.person : (existingGooglePeople.get(event.googleEventId) || 'family')
+        personIds: event.person !== 'family' ? [event.person] : (existingGooglePeople.get(event.googleEventId) || ['family']),
+        person: (event.person !== 'family' ? event.person : (existingGooglePeople.get(event.googleEventId)?.[0] || 'family'))
       })));
       state.googleCalendar = {
         ...normaliseGoogleCalendarState(state.googleCalendar),

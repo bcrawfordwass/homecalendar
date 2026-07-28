@@ -2571,3 +2571,39 @@ body[data-day-period="evening"] .home-today-card {
     padding-bottom: 12px;
   }
 }
+
+
+/* Family Hub v1.1.0: multi-person events and Family view */
+.event-people-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.event-people-fieldset legend { font-weight: 700; margin-bottom: 10px; }
+.event-people-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.event-person-option { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 9px 12px; border: 1px solid rgba(35,49,44,.13); border-radius: 14px; background: #fff; cursor: pointer; font-weight: 700; }
+.event-person-option input { position: absolute; opacity: 0; pointer-events: none; }
+.event-person-option:has(input:checked) { border-color: var(--person-colour); background: var(--person-chip); box-shadow: inset 0 0 0 1px var(--person-colour); }
+.event-person-check { width: 20px; height: 20px; border: 1px solid rgba(35,49,44,.2); border-radius: 6px; display: grid; place-items: center; color: transparent; background: #fff; }
+.event-person-option input:checked + .event-person-check { background: var(--person-colour); border-color: var(--person-colour); color: #fff; }
+.event-person-avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--person-colour); color: #fff; font-size: 13px; }
+.event-people-chips { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.person-chip.compact { width: 25px; height: 25px; padding: 0; border-radius: 50%; display: inline-grid; place-items: center; background: var(--person-colour, var(--chip-colour)); color: #fff; font-size: 11px; font-weight: 800; }
+.family-page { display: grid; gap: 18px; }
+.family-schedule-card, .family-members-card { padding: 22px; }
+.family-page-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
+.family-range-tabs { display: inline-flex; gap: 5px; padding: 5px; margin: 18px 0; border-radius: 15px; background: rgba(35,49,44,.06); }
+.family-range-tab { border: 0; border-radius: 11px; padding: 9px 16px; background: transparent; font: inherit; font-weight: 750; color: #68716d; cursor: pointer; }
+.family-range-tab.active { background: #fff; color: #23312c; box-shadow: 0 2px 8px rgba(35,49,44,.1); }
+.family-person-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.family-person-column { min-width: 0; border: 1px solid rgba(35,49,44,.1); border-top: 4px solid var(--person-colour); border-radius: 18px; padding: 15px; background: linear-gradient(180deg, var(--person-chip), rgba(255,255,255,.92) 35%); }
+.family-person-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 13px; }
+.family-person-heading .person-avatar { width: 38px; height: 38px; flex: 0 0 38px; }
+.family-person-heading > div:last-child { min-width: 0; display: grid; }
+.family-person-heading strong { font-size: 17px; }
+.family-person-heading span { color: #6e7773; font-size: 12px; }
+.family-person-events { display: grid; gap: 8px; }
+.family-schedule-event { width: 100%; min-width: 0; display: grid; gap: 3px; padding: 10px 11px; text-align: left; border: 1px solid rgba(35,49,44,.09); border-radius: 12px; background: rgba(255,255,255,.85); cursor: pointer; color: inherit; }
+.family-schedule-event:hover { border-color: var(--person-colour); }
+.family-schedule-event strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.family-event-when { color: #64706b; font-size: 11px; font-weight: 750; }
+.family-no-events { padding: 18px 8px; color: #7c8581; text-align: center; font-size: 13px; }
+.family-shared-events { margin-top: 15px; padding: 15px; border-radius: 18px; background: var(--person-chip); border-left: 4px solid var(--person-colour); }
+.family-shared-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+@media (max-width: 760px) { .event-people-picker { grid-template-columns: 1fr; } .family-page-heading { align-items: stretch; flex-direction: column; } }

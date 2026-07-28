@@ -1,21 +1,19 @@
-FAMILY HUB v1.0.0 — WALL DISPLAY MODE
+FAMILY HUB v1.1.0 - MULTI-PERSON EVENTS + FAMILY VIEW
 
-Copy every file in this folder into the root of your homecalendar repository and choose Replace.
-
-Commit message:
-Add Wall Display Mode
+INSTALL
+1. Copy every file in this folder into your existing homecalendar project.
+2. Choose Replace when prompted.
+3. Commit and push through GitHub Desktop.
+4. In Family Hub, use Check for updates or reload the app.
 
 WHAT IS NEW
-- Wall Display Mode master switch in Settings
-- Browser Fullscreen button using the Fullscreen API
-- Screen Wake Lock support while Family Hub is open
-- Hidden Settings navigation for everyday use
-- Hidden admin access: hold the FH badge for 3 seconds or tap the bottom-left corner five times
-- Automatic night dimming with configurable start, end and brightness
-- Optional return to Today after leaving Ambient Mode
-- Fullscreen and wake-lock status indicators
+- Events can be assigned to one, several, or all family members.
+- Existing single-person events migrate automatically and remain intact.
+- The People navigation item is now Family.
+- The Family view groups events by person.
+- Family view filters: Today, Tomorrow, and This week.
+- Shared events appear beneath each assigned person while remaining one event.
+- Google-synced events keep their Family Hub people assignments during sync.
+- Backup and restore preserve multi-person assignments.
 
-IMPORTANT ANDROID NOTE
-A PWA can request browser fullscreen, but some Android/Lenovo builds may continue showing part of the system status bar. Fully Kiosk Browser can provide true kiosk-level hiding, auto-start and crash recovery. Family Hub v1.0.0 is ready to run inside it.
-
-No Apps Script changes are required. Existing family data and Ambient photos remain on the tablet.
+NO APPS SCRIPT UPDATE IS REQUIRED.
