@@ -1868,8 +1868,13 @@ Check the URL, private secret and Apps Script deployment access.`);
       if (hasNewerVersion) {
         await serviceWorkerRegistration?.update();
         showUpdateBanner();
-      } else if (showFeedback) {
-        showToast('Family Hub is up to date');
+      } else {
+        updateBanner?.classList.add('hidden');
+        if (updateNowButton) {
+          updateNowButton.disabled = false;
+          updateNowButton.textContent = 'Update now';
+        }
+        if (showFeedback) showToast('Family Hub is up to date');
       }
     } catch (error) {
       if (status) status.textContent = 'Could not check while offline';

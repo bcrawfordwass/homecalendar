@@ -1,6 +1,6 @@
 window.APP_CONFIG = Object.freeze({
   name: 'Family Hub',
-  version: '1.1.1',
+  version: '1.1.3',
   buildDate: '2026-07-28',
   storage: 'IndexedDB'
 });
