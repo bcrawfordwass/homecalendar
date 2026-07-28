@@ -219,7 +219,9 @@
 
   function render() {
     const isHome = currentView === 'today';
+    const isSettings = currentView === 'settings';
     document.body.classList.toggle('home-dashboard-active', isHome);
+    document.body.classList.toggle('settings-page-active', isSettings);
     if (!isHome && homeHeaderActions) {
       homeHeaderActions.innerHTML = '';
       homeHeaderActions.classList.add('hidden');

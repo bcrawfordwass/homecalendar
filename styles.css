@@ -2519,3 +2519,41 @@ body[data-day-period="evening"] .home-today-card {
 .sync-status-text::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; background: #50b985; }
 .sync-status-text.syncing::before { background: #e7aa3c; }
 .sync-status-text.error::before, .sync-status-text.offline::before { background: #df6b6b; }
+
+
+/* v0.8.2: keep the full-screen shell fixed while allowing Settings to scroll */
+@media (orientation: landscape) and (min-width: 901px) {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  body.settings-page-active .main-content {
+    min-height: 0;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  body.settings-page-active #viewRoot {
+    flex: 0 0 auto;
+    min-height: auto;
+    padding-bottom: calc(34px + env(safe-area-inset-bottom));
+  }
+
+  body.settings-page-active .settings-layout {
+    align-items: start;
+    padding-bottom: 12px;
+  }
+}
