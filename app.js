@@ -116,7 +116,9 @@
     window.FamilyHubPublic = Object.freeze({
       getState: () => structuredCloneSafe(state),
       getEventIcon: title => getEventIcon(title),
-      showToast: message => showToast(message)
+      showToast: message => showToast(message),
+      setView: view => setView(view),
+      getCurrentView: () => currentView
     });
     document.title = `${APP.name} v${APP.version}`;
     if (appVersion) appVersion.textContent = `v${APP.version}`;

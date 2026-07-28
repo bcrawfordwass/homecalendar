@@ -116,6 +116,7 @@
       overlay.classList.remove('ambient-leaving');
       overlay.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('ambient-active');
+      document.dispatchEvent(new CustomEvent('familyhub:ambient-exit'));
       resetIdleTimer();
     }, 350);
   }
