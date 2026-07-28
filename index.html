@@ -8,7 +8,8 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=0.7.4">
+  <link rel="stylesheet" href="./styles.css?v=0.8.0">
+  <link rel="stylesheet" href="./ambient.css?v=0.8.0">
   <title>Family Hub</title>
 </head>
 <body>
@@ -128,9 +129,32 @@
     </section>
   </div>
 
+
+  <section id="ambientMode" class="ambient-mode hidden" aria-hidden="true" tabindex="0">
+    <div id="ambientPhotoA" class="ambient-photo-layer"></div>
+    <div id="ambientPhotoB" class="ambient-photo-layer"></div>
+    <div class="ambient-shade"></div>
+    <div id="ambientEmpty" class="ambient-empty hidden">
+      <span class="ambient-empty-icon">🖼️</span>
+      <strong>Add family photos in Settings</strong>
+      <span>Tap anywhere to return to Family Hub</span>
+    </div>
+    <div class="ambient-overlay">
+      <div class="ambient-topline"><div id="ambientWeather" class="ambient-weather"></div></div>
+      <div class="ambient-content">
+        <div>
+          <div id="ambientClock" class="ambient-clock"></div>
+          <div id="ambientDate" class="ambient-date"></div>
+        </div>
+        <div id="ambientNext" class="ambient-next"></div>
+      </div>
+    </div>
+  </section>
+
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="./config.js?v=0.7.4"></script>
-  <script src="./storage.js?v=0.7.4"></script>
-  <script src="./app.js?v=0.7.4" defer></script>
+  <script src="./config.js?v=0.8.0"></script>
+  <script src="./storage.js?v=0.8.0"></script>
+  <script src="./app.js?v=0.8.0" defer></script>
+  <script src="./ambient.js?v=0.8.0" defer></script>
 </body>
 </html>

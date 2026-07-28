@@ -113,6 +113,11 @@
     state = normaliseLoadedState(storageResult.state);
     lastBackupAt = storageResult.lastBackup || null;
     storageMode = storageResult.mode || 'IndexedDB';
+    window.FamilyHubPublic = Object.freeze({
+      getState: () => structuredCloneSafe(state),
+      getEventIcon: title => getEventIcon(title),
+      showToast: message => showToast(message)
+    });
     document.title = `${APP.name} v${APP.version}`;
     if (appVersion) appVersion.textContent = `v${APP.version}`;
     refreshPersonOptions();
