@@ -2607,3 +2607,23 @@ body[data-day-period="evening"] .home-today-card {
 .family-shared-events { margin-top: 15px; padding: 15px; border-radius: 18px; background: var(--person-chip); border-left: 4px solid var(--person-colour); }
 .family-shared-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
 @media (max-width: 760px) { .event-people-picker { grid-template-columns: 1fr; } .family-page-heading { align-items: stretch; flex-direction: column; } }
+
+
+/* Family Hub v1.1.1: allow the full Family view to scroll in wall-display landscape mode */
+@media (orientation: landscape) and (min-width: 901px) {
+  body.family-page-active .main-content {
+    min-height: 0;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  body.family-page-active #viewRoot {
+    flex: 0 0 auto;
+    min-height: auto;
+    padding-bottom: calc(34px + env(safe-area-inset-bottom));
+  }
+}

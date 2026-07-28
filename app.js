@@ -223,8 +223,10 @@
   function render() {
     const isHome = currentView === 'today';
     const isSettings = currentView === 'settings';
+    const isFamily = currentView === 'people';
     document.body.classList.toggle('home-dashboard-active', isHome);
     document.body.classList.toggle('settings-page-active', isSettings);
+    document.body.classList.toggle('family-page-active', isFamily);
     if (!isHome && homeHeaderActions) {
       homeHeaderActions.innerHTML = '';
       homeHeaderActions.classList.add('hidden');
