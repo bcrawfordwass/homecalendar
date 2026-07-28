@@ -1,17 +1,11 @@
-FAMILY HUB v0.8.2 - SETTINGS SCROLL FIX
+FAMILY HUB v0.8.3 - TODAY TIMELINE FIX
 
-Based on: v0.8.1
+1. Copy all included files into your homecalendar project folder.
+2. Replace the existing files when prompted.
+3. Commit and push with: Improve Today timeline layout
 
-WHAT THIS FIXES
-- Settings scrolls normally in full-screen landscape mode.
-- The overall app shell stays fixed instead of sliding up the page.
-- Extra bottom space keeps the final settings controls above Android's gesture area.
-- Dashboard and split-screen layouts remain unchanged.
-
-INSTALL
-1. Copy every included file into your homecalendar project folder.
-2. Choose Replace when prompted.
-3. Commit and push to GitHub.
-
-Suggested commit message:
-Fix full-screen Settings scrolling
+Changes:
+- Removes the hard-coded 19:00 dinner marker.
+- Staggers labels for nearby timed events above and below the timeline.
+- Keeps long event names contained with ellipsis.
+- Leaves meal planning and the dinner card unchanged.

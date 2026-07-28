@@ -1673,48 +1673,60 @@ body.nav-expanded .update-banner {
 
 .home-timeline {
   position: relative;
-  min-height: 66px;
+  min-height: 92px;
   margin-top: auto;
-  padding: 17px 6px 0;
+  padding: 8px 10px 0;
 }
 .home-timeline-track {
   position: absolute;
-  right: 8px;
-  bottom: 30px;
-  left: 8px;
+  right: 10px;
+  bottom: 39px;
+  left: 10px;
   height: 2px;
   border-radius: 999px;
   background: #ccd8e0;
 }
 .home-timeline-marker {
   position: absolute;
-  bottom: 7px;
+  bottom: 39px;
   left: var(--marker-position);
-  width: 74px;
-  transform: translateX(-50%);
+  width: 1px;
+  height: 1px;
   text-align: center;
 }
 .home-timeline-marker i {
-  display: block;
-  width: 12px;
-  height: 12px;
-  margin: 3px auto 4px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--marker-colour);
   box-shadow: 0 0 0 1px rgba(32,39,34,.08);
+  transform: translate(-50%, -50%);
 }
+.home-timeline-caption {
+  position: absolute;
+  left: 50%;
+  width: 112px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.home-timeline-lane-0 .home-timeline-caption { top: 14px; }
+.home-timeline-lane-1 .home-timeline-caption { bottom: 14px; }
 .home-timeline-time,
 .home-timeline-label {
   display: block;
   overflow: hidden;
   font-size: 10px;
   font-weight: 800;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .home-timeline-time { color: #3b4842; }
-.home-timeline-label { color: var(--muted); }
+.home-timeline-label { margin-top: 2px; color: var(--muted); }
 .home-timeline-empty {
   display: grid;
   min-height: 52px;
@@ -2007,8 +2019,9 @@ body.home-dashboard-active .main-content {
   .home-event-symbol { width: 36px; height: 36px; font-size: 16px; }
   .home-event-title { font-size: 15px; }
   .home-event-time, .home-event-person { font-size: 9px; }
-  .home-timeline { min-height: 51px; padding-top: 9px; }
-  .home-timeline-track { bottom: 25px; }
+  .home-timeline { min-height: 76px; padding-top: 6px; }
+  .home-timeline-track, .home-timeline-marker { bottom: 32px; }
+  .home-timeline-caption { width: 96px; }
   .home-week-row { padding-block: 3px; }
   .home-week-date strong { font-size: 12px; }
   .home-week-event { font-size: 9px; }
@@ -2187,12 +2200,13 @@ body.home-dashboard-active .main-content {
   }
 
   .home-timeline {
-    min-height: 55px;
-    padding-top: 10px;
+    min-height: 86px;
+    padding-top: 7px;
   }
 
-  .home-timeline-track {
-    bottom: 26px;
+  .home-timeline-track,
+  .home-timeline-marker {
+    bottom: 36px;
   }
 
   .home-timeline-time,

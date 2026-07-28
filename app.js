@@ -545,27 +545,40 @@
     return match?.icon || '📅';
   }
 
-  function homeTimelineHTML(events, meal) {
-    const timedEvents = events
+  function homeTimelineHTML(events) {
+    const markers = events
       .filter(event => event.startTime)
-      .slice(0, 3)
+      .slice(0, 4)
       .map(event => ({
         label: event.title,
         time: event.startTime,
-        colour: personFor(event.person).colour
-      }));
+        colour: personFor(event.person).colour,
+        position: homeTimelinePosition(event.startTime)
+      }))
+      .sort((a, b) => a.position - b.position);
 
-    const markers = [...timedEvents];
-    if (meal && meal !== 'Not decided') markers.push({ label: 'Dinner', time: '19:00', colour: '#f2a51a' });
     if (!markers.length) return '<div class="home-timeline home-timeline-empty"><span>No timed events today</span></div>';
+
+    let previousPosition = -100;
+    let previousLane = 1;
+    markers.forEach(marker => {
+      const isClose = marker.position - previousPosition < 21;
+      marker.lane = isClose ? (previousLane === 0 ? 1 : 0) : 0;
+      previousPosition = marker.position;
+      previousLane = marker.lane;
+    });
 
     return `
       <div class="home-timeline" aria-label="Today timeline">
         <div class="home-timeline-track"></div>
-        ${markers.map(item => {
-          const position = homeTimelinePosition(item.time);
-          return `<div class="home-timeline-marker" style="--marker-position:${position}%;--marker-colour:${item.colour}"><span class="home-timeline-time">${escapeHTML(item.time)}</span><i></i><span class="home-timeline-label">${escapeHTML(item.label)}</span></div>`;
-        }).join('')}
+        ${markers.map(item => `
+          <div class="home-timeline-marker home-timeline-lane-${item.lane}" style="--marker-position:${item.position}%;--marker-colour:${item.colour}">
+            <i></i>
+            <span class="home-timeline-caption">
+              <span class="home-timeline-time">${escapeHTML(item.time)}</span>
+              <span class="home-timeline-label">${escapeHTML(item.label)}</span>
+            </span>
+          </div>`).join('')}
       </div>`;
   }
 
