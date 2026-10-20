@@ -57,13 +57,15 @@ $('add-person-form').onsubmit=async e=>{e.preventDefault();try{
 
 function renderDashboardPeople(people){
  $('dashboard-household').textContent=activeHousehold?.name || 'Your household';
- $('dashboard-account').textContent=currentSession?.user?.email || '';
+ $('dashboard-count').textContent=people.length+' '+(people.length===1?'person':'people');
  const root=$('dashboard-people');root.replaceChildren();
  if(!people.length){const p=document.createElement('p');p.textContent='No family profiles yet. Add your first person in Manage family.';root.append(p);return;}
  for(const person of people){const tile=document.createElement('div');tile.className='family-tile';const dot=document.createElement('span');dot.className='family-avatar';dot.style.background=person.color;dot.textContent=(person.name||'?').trim().slice(0,1).toUpperCase();const name=document.createElement('strong');name.textContent=person.name;tile.append(dot,name);root.append(tile);}
 }
-function openDashboard(){if(!currentSession||!activeHousehold){message('Create or choose a household first.',true);return;}show('home',false);show('cloud-dashboard',true);show('show-management',false);message('Showing your household dashboard preview.');}
+function openDashboard(){if(!currentSession||!activeHousehold){message('Create or choose a household first.',true);return;}show('home',false);show('cloud-dashboard',true);show('show-management',false);$('dashboard-date').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());const hour=new Date().getHours();$('dashboard-greeting').textContent=(hour<12?'Good morning':hour<17?'Good afternoon':'Good evening')+', '+(activeHousehold.name||'Family');message('Showing your cloud household dashboard.');}
 function openManagement(){show('cloud-dashboard',false);show('home',true);}
 $('show-dashboard').onclick=openDashboard;
 $('dashboard-manage').onclick=openManagement;
 $('show-management').onclick=openManagement;
+
+$('dashboard-family-nav').onclick=openManagement;
