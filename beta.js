@@ -2,7 +2,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const $ = id => document.getElementById(id);
 const show = (id, yes) => $(id).classList.toggle('hidden', !yes);
 const message = (txt, bad=false) => { $('status').textContent = txt; $('status').classList.toggle('error', bad); };
-let client, selectedHousehold;
+let client, selectedHousehold, activeHousehold = null, currentSession = null;
 $('key').value = 'sb_publishable_5QkMowoiTtIsYbFCe6Aq-Q_1aWZFI01';
 $('url').value = localStorage.getItem('fh2-beta-url') || '';
 function setupClient() {
@@ -23,9 +23,9 @@ async function auth(action){try{
  message(action==='signup'&&!data.session?'Account created. Check your email to confirm, then sign in.':'Signed in.');
 }catch(e){message(e.message,true)}}
 $('signup').onclick=()=>auth('signup'); $('signin').onclick=()=>auth('signin');
-$('signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;message('Signed out.');};
+$('signout').onclick=$('dashboard-signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;activeHousehold=null;currentSession=null;show('cloud-dashboard',false);message('Signed out.');};
 async function renderSession(session){
- show('home',!!session);show('auth',!session);if(!session)return;
+ currentSession=session;show('home',!!session);show('auth',!session);if(!session){show('cloud-dashboard',false);return;}
  $('signedin').textContent='Signed in as '+session.user.email;
  try{await loadHouseholds()}catch(e){message('Database setup needed: '+e.message,true)}
 }
@@ -41,11 +41,12 @@ $('create-household').onclick=async()=>{try{
  const {error}=await client.rpc('create_household',{p_name:$('household-name').value.trim()});if(error)throw error;
  message('Household created.');await loadHouseholds();
 }catch(e){message(e.message,true)}};
-async function chooseHousehold(h){selectedHousehold=h.id;show('people-panel',true);await loadPeople();}
+async function chooseHousehold(h){selectedHousehold=h.id;activeHousehold=h;show('people-panel',true);await loadPeople();}
 async function loadPeople(){
  const {data,error}=await client.from('family_people').select('id,name,color').eq('household_id',selectedHousehold).order('created_at');
  if(error)throw error;
  $('people-list').replaceChildren();
+ renderDashboardPeople(data);
  for(const p of data){const row=document.createElement('div');row.className='person';const left=document.createElement('span');const dot=document.createElement('i');dot.className='dot';dot.style.background=p.color;left.append(dot,document.createTextNode(p.name));const del=document.createElement('button');del.className='secondary';del.textContent='Remove';del.onclick=async()=>{if(!confirm('Remove '+p.name+'?'))return;const {error}=await client.from('family_people').delete().eq('id',p.id);if(error)message(error.message,true);else await loadPeople()};row.append(left,del);$('people-list').append(row)}
 }
 $('add-person-form').onsubmit=async e=>{e.preventDefault();try{
@@ -53,3 +54,16 @@ $('add-person-form').onsubmit=async e=>{e.preventDefault();try{
  const {error}=await client.from('family_people').insert({household_id:selectedHousehold,name:$('person-name').value.trim(),color:$('person-color').value});if(error)throw error;
  $('person-name').value='';message('Family member added.');await loadPeople();
 }catch(err){message(err.message,true)}};
+
+function renderDashboardPeople(people){
+ $('dashboard-household').textContent=activeHousehold?.name || 'Your household';
+ $('dashboard-account').textContent=currentSession?.user?.email || '';
+ const root=$('dashboard-people');root.replaceChildren();
+ if(!people.length){const p=document.createElement('p');p.textContent='No family profiles yet. Add your first person in Manage family.';root.append(p);return;}
+ for(const person of people){const tile=document.createElement('div');tile.className='family-tile';const dot=document.createElement('span');dot.className='family-avatar';dot.style.background=person.color;dot.textContent=(person.name||'?').trim().slice(0,1).toUpperCase();const name=document.createElement('strong');name.textContent=person.name;tile.append(dot,name);root.append(tile);}
+}
+function openDashboard(){if(!currentSession||!activeHousehold){message('Create or choose a household first.',true);return;}show('home',false);show('cloud-dashboard',true);show('show-management',false);message('Showing your household dashboard preview.');}
+function openManagement(){show('cloud-dashboard',false);show('home',true);}
+$('show-dashboard').onclick=openDashboard;
+$('dashboard-manage').onclick=openManagement;
+$('show-management').onclick=openManagement;
