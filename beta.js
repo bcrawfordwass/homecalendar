@@ -1,0 +1,55 @@
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const $ = id => document.getElementById(id);
+const show = (id, yes) => $(id).classList.toggle('hidden', !yes);
+const message = (txt, bad=false) => { $('status').textContent = txt; $('status').classList.toggle('error', bad); };
+let client, selectedHousehold;
+$('key').value = 'sb_publishable_5QkMowoiTtIsYbFCe6Aq-Q_1aWZFI01';
+$('url').value = localStorage.getItem('fh2-beta-url') || '';
+function setupClient() {
+ const url = $('url').value.trim(); const key = $('key').value.trim();
+ if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) throw Error('Enter your Supabase project URL (https://…supabase.co).');
+ if (!key.startsWith('sb_publishable_')) throw Error('Enter a publishable key.');
+ client = createClient(url.replace(/\/$/,''), key);
+ localStorage.setItem('fh2-beta-url',url); show('auth',true); message('Connected to project configuration. Sign in to test database access.');
+ client.auth.onAuthStateChange((_event,session)=>{ queueMicrotask(()=>renderSession(session)); });
+ client.auth.getSession().then(({data})=>renderSession(data.session));
+}
+$('connect').onclick=()=>{try{setupClient()}catch(e){message(e.message,true)}};
+async function auth(action){try{
+ const email=$('email').value.trim(),password=$('password').value;
+ if(!email||password.length<8) throw Error('Enter an email and password of at least 8 characters.');
+ const {data,error}=await (action==='signup'?client.auth.signUp({email,password}):client.auth.signInWithPassword({email,password}));
+ if(error) throw error;
+ message(action==='signup'&&!data.session?'Account created. Check your email to confirm, then sign in.':'Signed in.');
+}catch(e){message(e.message,true)}}
+$('signup').onclick=()=>auth('signup'); $('signin').onclick=()=>auth('signin');
+$('signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;message('Signed out.');};
+async function renderSession(session){
+ show('home',!!session);show('auth',!session);if(!session)return;
+ $('signedin').textContent='Signed in as '+session.user.email;
+ try{await loadHouseholds()}catch(e){message('Database setup needed: '+e.message,true)}
+}
+async function loadHouseholds(){
+ const {data,error}=await client.from('households').select('id,name,created_at').order('created_at');
+ if(error)throw error;
+ $('household-list').replaceChildren();
+ show('household-setup',data.length===0);
+ for(const h of data){const b=document.createElement('button');b.className='secondary';b.textContent=h.name;b.onclick=()=>chooseHousehold(h);$('household-list').append(b)}
+ if(data.length)await chooseHousehold(data.find(h=>h.id===selectedHousehold)||data[0]);else show('people-panel',false);
+}
+$('create-household').onclick=async()=>{try{
+ const {error}=await client.rpc('create_household',{p_name:$('household-name').value.trim()});if(error)throw error;
+ message('Household created.');await loadHouseholds();
+}catch(e){message(e.message,true)}};
+async function chooseHousehold(h){selectedHousehold=h.id;show('people-panel',true);await loadPeople();}
+async function loadPeople(){
+ const {data,error}=await client.from('family_people').select('id,name,color').eq('household_id',selectedHousehold).order('created_at');
+ if(error)throw error;
+ $('people-list').replaceChildren();
+ for(const p of data){const row=document.createElement('div');row.className='person';const left=document.createElement('span');const dot=document.createElement('i');dot.className='dot';dot.style.background=p.color;left.append(dot,document.createTextNode(p.name));const del=document.createElement('button');del.className='secondary';del.textContent='Remove';del.onclick=async()=>{if(!confirm('Remove '+p.name+'?'))return;const {error}=await client.from('family_people').delete().eq('id',p.id);if(error)message(error.message,true);else await loadPeople()};row.append(left,del);$('people-list').append(row)}
+}
+$('add-person-form').onsubmit=async e=>{e.preventDefault();try{
+ if(!selectedHousehold)throw Error('Select a household.');
+ const {error}=await client.from('family_people').insert({household_id:selectedHousehold,name:$('person-name').value.trim(),color:$('person-color').value});if(error)throw error;
+ $('person-name').value='';message('Family member added.');await loadPeople();
+}catch(err){message(err.message,true)}};
