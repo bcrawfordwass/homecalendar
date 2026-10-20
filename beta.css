@@ -37,3 +37,5 @@ body:has(.hub-workspace:not(.hidden)) #home,body:has(.hub-workspace:not(.hidden)
 .google-signin:hover{background:#f2f6f1}
 .google-signin:disabled{opacity:.6;cursor:wait}
 .auth-divider{text-align:center;font-size:13px;color:#65756b;margin:12px 0}
+
+.calendar-connect{margin-top:1rem}.calendar-events{max-height:320px;overflow:auto;margin-top:1rem}.calendar-event{display:flex;gap:1rem;align-items:baseline;padding:.65rem 0;border-bottom:1px solid #dce5dc}.calendar-event-date{font-size:.8rem;color:#52645a;min-width:115px}.calendar-event strong{overflow-wrap:anywhere}.calendar-note{font-size:.8rem;color:#64746b;margin-top:1rem}

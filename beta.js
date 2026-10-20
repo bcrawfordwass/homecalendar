@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 const show = (id, yes) => $(id).classList.toggle('hidden', !yes);
 const message = (txt, bad=false) => { $('status').textContent = txt; $('status').classList.toggle('error', bad); };
 let client, selectedHousehold, activeHousehold = null, currentSession = null;
+let googleCalendarToken = null;
 // Public browser configuration. Security comes from Supabase RLS, not secrecy of this key.
 const SUPABASE_URL = 'https://zmddqauowtjiqghakkcz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_5QkMowoiTtIsYbFCe6Aq-Q_1aWZFI01';
@@ -46,9 +47,9 @@ const oauthHash = new URLSearchParams(window.location.hash.slice(1));
 const oauthError = oauthParams.get('error_description') || oauthHash.get('error_description');
 if (oauthError) message('Google sign-in failed: ' + oauthError, true);
 
-$('signout').onclick=$('dashboard-signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;activeHousehold=null;currentSession=null;show('cloud-dashboard',false);show('home',false);show('auth',true);message('Signed out.');};
+$('signout').onclick=$('dashboard-signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;activeHousehold=null;currentSession=null;googleCalendarToken=null;show('cloud-dashboard',false);show('home',false);show('auth',true);message('Signed out.');};
 async function renderSession(session){
- currentSession=session;show('home',!!session);show('auth',!session);if(!session){show('cloud-dashboard',false);show('home',false);return;}
+ currentSession=session; if (session?.provider_token) googleCalendarToken = session.provider_token; show('home',!!session);show('auth',!session);if(!session){show('cloud-dashboard',false);show('home',false);return;}
  $('signedin').textContent='Signed in as '+session.user.email;
  try{await loadHouseholds()}catch(e){message('Database setup needed: '+e.message,true)}
 }
@@ -84,10 +85,51 @@ function renderDashboardPeople(people){
  if(!people.length){const p=document.createElement('p');p.textContent='No family profiles yet. Add your first person in Manage family.';root.append(p);return;}
  for(const person of people){const tile=document.createElement('div');tile.className='family-tile';const dot=document.createElement('span');dot.className='family-avatar';dot.style.background=person.color;dot.textContent=(person.name||'?').trim().slice(0,1).toUpperCase();const name=document.createElement('strong');name.textContent=person.name;tile.append(dot,name);root.append(tile);}
 }
-function openDashboard(){if(!currentSession||!activeHousehold){message('Create or choose a household first.',true);return;}show('home',false);show('cloud-dashboard',true);show('show-management',false);$('dashboard-date').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());const hour=new Date().getHours();$('dashboard-greeting').textContent=(hour<12?'Good morning':hour<17?'Good afternoon':'Good evening')+', '+(activeHousehold.name||'Family');message('Showing your cloud household dashboard.');}
+function openDashboard(){if(!currentSession||!activeHousehold){message('Create or choose a household first.',true);return;}show('home',false);show('cloud-dashboard',true);show('show-management',false);$('dashboard-date').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());const hour=new Date().getHours();$('dashboard-greeting').textContent=(hour<12?'Good morning':hour<17?'Good afternoon':'Good evening')+', '+(activeHousehold.name||'Family');message('Showing your cloud household dashboard.'); renderCalendarConnection();}
 function openManagement(){show('cloud-dashboard',false);show('home',true);}
 $('show-dashboard').onclick=openDashboard;
 $('dashboard-manage').onclick=openManagement;
 $('show-management').onclick=openManagement;
 
 $('dashboard-family-nav').onclick=openManagement;
+
+// Alpha 6: foreground-only, read-only Google Calendar preview.
+// The Google provider token is short-lived; never persist it in localStorage or Supabase.
+function renderCalendarConnection(){
+ const state=$('calendar-state');
+ if(!state)return;
+ state.textContent=googleCalendarToken?'Google Calendar access available for this session.':'Connect Google Calendar to preview events. You may need to grant access again after the token expires.';
+ show('calendar-refresh',!!googleCalendarToken);
+}
+$('calendar-connect').onclick=async()=>{
+ try {
+  message('Opening Google Calendar permission screen…');
+  const redirectTo=new URL('beta.html',window.location.href).href;
+  const {error}=await client.auth.signInWithOAuth({provider:'google',options:{
+   redirectTo,
+   scopes:'https://www.googleapis.com/auth/calendar.readonly',
+   queryParams:{access_type:'online',prompt:'consent',include_granted_scopes:'true'}
+  }});
+  if(error)throw error;
+ }catch(e){message('Calendar connection failed: '+e.message,true)}
+};
+$('calendar-refresh').onclick=loadGoogleEvents;
+async function loadGoogleEvents(){
+ const root=$('calendar-events');root.replaceChildren();
+ if(!googleCalendarToken){message('Reconnect Google Calendar to get a fresh access token.',true);return;}
+ const status=$('calendar-state');status.textContent='Loading upcoming events…';
+ try{
+  const now=new Date(),until=new Date(now.getTime()+7*86400000);
+  const resp=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?'+new URLSearchParams({
+   timeMin:now.toISOString(),timeMax:until.toISOString(),singleEvents:'true',orderBy:'startTime',maxResults:'25'
+  }),{headers:{Authorization:'Bearer '+googleCalendarToken}});
+  if(!resp.ok){const err=await resp.json().catch(()=>({}));throw Error(err.error?.message||'Google returned HTTP '+resp.status)}
+  const data=await resp.json();status.textContent='Upcoming events from your primary Google Calendar';
+  if(!data.items?.length){root.textContent='No upcoming events in the next seven days.';return;}
+  for(const ev of data.items){const item=document.createElement('div');item.className='calendar-event';
+   const date=document.createElement('span');date.className='calendar-event-date';
+   const raw=ev.start?.dateTime||ev.start?.date;date.textContent=raw?new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',...(ev.start?.dateTime?{hour:'2-digit',minute:'2-digit'}:{})}).format(new Date(ev.start?.dateTime||raw+'T12:00:00')):'Date unavailable';
+   const title=document.createElement('strong');title.textContent=ev.summary||'Untitled event';item.append(date,title);root.append(item);
+  }
+ }catch(e){status.textContent='Calendar could not be loaded.';message('Google Calendar: '+e.message,true);}
+}
