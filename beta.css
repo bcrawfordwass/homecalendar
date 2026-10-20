@@ -19,3 +19,15 @@ body:has(.hub-workspace:not(.hidden)) #status{position:fixed;bottom:8px;right:20
 .hub-hero{grid-column:1/-1;background:linear-gradient(120deg,#f9fbf8,#eaf4e8)}.hub-family-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0}.hub-family-grid .family-tile{background:#fff;min-height:95px}.hub-preview{min-height:230px}.hub-placeholder{margin-top:20px;border:1px dashed #d3ddd2;border-radius:18px;min-height:135px;padding:18px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}.hub-placeholder span{font-size:28px}.hub-placeholder strong{margin-top:7px}.hub-placeholder p{margin:6px 0 0;max-width:320px;font-size:13px}.hub-safety{font-size:12px;margin-top:22px}
 @media(max-width:800px){.hub-workspace{grid-template-columns:64px minmax(0,1fr)}.hub-sidebar{padding:15px 5px}.hub-logo{padding:10px 8px}.hub-nav span,.hub-sidebar-bottom{display:none}.hub-layout{grid-template-columns:1fr}.hub-hero{grid-column:auto}.hub-panel{padding:17px}}
 @media(max-width:500px){.hub-workspace{display:block;padding-bottom:60px}.hub-sidebar{position:fixed;bottom:0;left:0;right:0;height:54px;z-index:4;flex-direction:row;justify-content:space-around;padding:5px}.hub-logo{padding:8px}.hub-nav{width:auto;padding:7px 18px}.hub-content{padding:16px}.hub-top-actions{width:100%;justify-content:space-between}}
+
+/* Alpha 4: simple account onboarding, no developer connection panel. */
+body:not(:has(.hub-workspace:not(.hidden))) .shell{max-width:600px;margin:4vh auto}
+body:not(:has(.hub-workspace:not(.hidden))) .shell>header{display:none}
+#auth{padding:clamp(22px,5vw,44px)}
+#auth h2{font-size:clamp(28px,5vw,40px);letter-spacing:-.04em;margin:12px 0}
+.welcome-mark{width:58px;height:58px;border-radius:16px;background:#e6ad40;color:#26382d;display:grid;place-items:center;font-weight:800;font-size:20px}
+.welcome-kicker{font-size:12px;letter-spacing:.13em;font-weight:700;margin:22px 0 0}
+.welcome-note{background:#f1f5ef;padding:12px;border-radius:10px;font-size:13px}
+#auth .buttons{justify-content:flex-start}
+#auth .buttons button{flex:1;min-width:150px}
+body:has(.hub-workspace:not(.hidden)) #home,body:has(.hub-workspace:not(.hidden)) #auth{display:none!important}

@@ -3,18 +3,18 @@ const $ = id => document.getElementById(id);
 const show = (id, yes) => $(id).classList.toggle('hidden', !yes);
 const message = (txt, bad=false) => { $('status').textContent = txt; $('status').classList.toggle('error', bad); };
 let client, selectedHousehold, activeHousehold = null, currentSession = null;
-$('key').value = 'sb_publishable_5QkMowoiTtIsYbFCe6Aq-Q_1aWZFI01';
-$('url').value = localStorage.getItem('fh2-beta-url') || '';
+// Public browser configuration. Security comes from Supabase RLS, not secrecy of this key.
+const SUPABASE_URL = 'https://zmddqauowtjiqghakkcz.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_5QkMowoiTtIsYbFCe6Aq-Q_1aWZFI01';
 function setupClient() {
- const url = $('url').value.trim(); const key = $('key').value.trim();
- if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url)) throw Error('Enter your Supabase project URL (https://…supabase.co).');
- if (!key.startsWith('sb_publishable_')) throw Error('Enter a publishable key.');
- client = createClient(url.replace(/\/$/,''), key);
- localStorage.setItem('fh2-beta-url',url); show('auth',true); message('Connected to project configuration. Sign in to test database access.');
+ client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
  client.auth.onAuthStateChange((_event,session)=>{ queueMicrotask(()=>renderSession(session)); });
- client.auth.getSession().then(({data})=>renderSession(data.session));
+ client.auth.getSession().then(({data,error})=>{
+   if(error) message('Unable to restore sign-in: '+error.message,true);
+   else renderSession(data.session);
+ }).catch(e=>message('Connection error: '+e.message,true));
 }
-$('connect').onclick=()=>{try{setupClient()}catch(e){message(e.message,true)}};
+setupClient();
 async function auth(action){try{
  const email=$('email').value.trim(),password=$('password').value;
  if(!email||password.length<8) throw Error('Enter an email and password of at least 8 characters.');
@@ -23,9 +23,9 @@ async function auth(action){try{
  message(action==='signup'&&!data.session?'Account created. Check your email to confirm, then sign in.':'Signed in.');
 }catch(e){message(e.message,true)}}
 $('signup').onclick=()=>auth('signup'); $('signin').onclick=()=>auth('signin');
-$('signout').onclick=$('dashboard-signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;activeHousehold=null;currentSession=null;show('cloud-dashboard',false);message('Signed out.');};
+$('signout').onclick=$('dashboard-signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;activeHousehold=null;currentSession=null;show('cloud-dashboard',false);show('home',false);show('auth',true);message('Signed out.');};
 async function renderSession(session){
- currentSession=session;show('home',!!session);show('auth',!session);if(!session){show('cloud-dashboard',false);return;}
+ currentSession=session;show('home',!!session);show('auth',!session);if(!session){show('cloud-dashboard',false);show('home',false);return;}
  $('signedin').textContent='Signed in as '+session.user.email;
  try{await loadHouseholds()}catch(e){message('Database setup needed: '+e.message,true)}
 }
@@ -35,7 +35,7 @@ async function loadHouseholds(){
  $('household-list').replaceChildren();
  show('household-setup',data.length===0);
  for(const h of data){const b=document.createElement('button');b.className='secondary';b.textContent=h.name;b.onclick=()=>chooseHousehold(h);$('household-list').append(b)}
- if(data.length)await chooseHousehold(data.find(h=>h.id===selectedHousehold)||data[0]);else show('people-panel',false);
+ if(data.length){await chooseHousehold(data.find(h=>h.id===selectedHousehold)||data[0]);openDashboard();}else{show('people-panel',false);show('cloud-dashboard',false);show('home',true);}
 }
 $('create-household').onclick=async()=>{try{
  const {error}=await client.rpc('create_household',{p_name:$('household-name').value.trim()});if(error)throw error;
@@ -56,7 +56,6 @@ $('add-person-form').onsubmit=async e=>{e.preventDefault();try{
 }catch(err){message(err.message,true)}};
 
 function renderDashboardPeople(people){
- $('dashboard-household').textContent=activeHousehold?.name || 'Your household';
  $('dashboard-count').textContent=people.length+' '+(people.length===1?'person':'people');
  const root=$('dashboard-people');root.replaceChildren();
  if(!people.length){const p=document.createElement('p');p.textContent='No family profiles yet. Add your first person in Manage family.';root.append(p);return;}
