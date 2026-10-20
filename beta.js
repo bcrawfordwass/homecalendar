@@ -23,6 +23,29 @@ async function auth(action){try{
  message(action==='signup'&&!data.session?'Account created. Check your email to confirm, then sign in.':'Signed in.');
 }catch(e){message(e.message,true)}}
 $('signup').onclick=()=>auth('signup'); $('signin').onclick=()=>auth('signin');
+$('google-signin').onclick = async () => {
+ try {
+  const button = $('google-signin');
+  button.disabled = true;
+  message('Opening Google sign-in…');
+  // Supabase's PKCE redirect returns to this exact beta page, not the v1 dashboard.
+  const redirectTo = new URL('beta.html', window.location.href).href;
+  const { error } = await client.auth.signInWithOAuth({
+   provider: 'google',
+   options: { redirectTo, skipBrowserRedirect: false }
+  });
+  if (error) throw error;
+ } catch (e) {
+  $('google-signin').disabled = false;
+  message('Google sign-in failed: ' + e.message, true);
+ }
+};
+// OAuth errors can arrive in the callback URL before a session is established.
+const oauthParams = new URLSearchParams(window.location.search);
+const oauthHash = new URLSearchParams(window.location.hash.slice(1));
+const oauthError = oauthParams.get('error_description') || oauthHash.get('error_description');
+if (oauthError) message('Google sign-in failed: ' + oauthError, true);
+
 $('signout').onclick=$('dashboard-signout').onclick=async()=>{await client.auth.signOut();selectedHousehold=null;activeHousehold=null;currentSession=null;show('cloud-dashboard',false);show('home',false);show('auth',true);message('Signed out.');};
 async function renderSession(session){
  currentSession=session;show('home',!!session);show('auth',!session);if(!session){show('cloud-dashboard',false);show('home',false);return;}

@@ -31,3 +31,9 @@ body:not(:has(.hub-workspace:not(.hidden))) .shell>header{display:none}
 #auth .buttons{justify-content:flex-start}
 #auth .buttons button{flex:1;min-width:150px}
 body:has(.hub-workspace:not(.hidden)) #home,body:has(.hub-workspace:not(.hidden)) #auth{display:none!important}
+
+/* Alpha 5: Google OAuth onboarding. */
+.google-signin{display:block;width:100%;margin:18px 0 12px;background:#fff;color:#27372d;border:1px solid #b9c7bd;font-weight:700;min-height:48px}
+.google-signin:hover{background:#f2f6f1}
+.google-signin:disabled{opacity:.6;cursor:wait}
+.auth-divider{text-align:center;font-size:13px;color:#65756b;margin:12px 0}
